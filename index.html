@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Hero Wars : GvG Command Center - v1.51</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.51</span>
+                </h1>
+                <p class="text-xs text-slate-400">UI Dynamique : Vignettes locales optimisées & Mode Hors-Ligne</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
+                <button onclick="exportGlobalBackup()" class="bg-amber-600/85 hover:bg-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1">
+                    <span>📦</span> Export Global (JSON)
+                </button>
+                <button onclick="exportAllBattlesCSV()" class="bg-blue-600/85 hover:bg-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1">
+                    <span>💾</span> Export CSV
+                </button>
+                <button onclick="resetDatabase()" class="bg-red-600/85 hover:bg-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">Purger</button>
+            </div>
+        </header>
+
+        <!-- Import Section -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg md:col-span-2 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-amber-300 mb-2">1. Guerres ou Sauvegarde Globale (JSON)</h2>
+                    <input type="file" id="jsonInput" accept=".json" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
+                </div>
+                
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 mt-2">
+                    <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1">
+                        <span>◀</span> Précédente
+                    </button>
+                    
+                    <div class="text-center flex-1 flex items-center justify-center gap-2">
+                        <span id="warDateText" class="text-xl font-extrabold text-amber-400 tracking-wider">--/--</span>
+                        <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-base ml-2" title="Supprimer uniquement cette guerre">🗑️</button>
+                    </div>
+
+                    <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1">
+                        Suivante <span>▶</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-blue-300 mb-2">2. Database Batailles Héros (CSV)</h2>
+                    <input type="file" id="heroInput" accept=".csv" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                </div>
+                <div>
+                    <div id="heroMeta" class="text-[11px] font-mono text-slate-400 font-semibold">0 batailles en DB</div>
+                    <div id="heroImportLog" class="text-[10px] font-mono text-emerald-400 h-4"></div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-purple-300 mb-2">3. Database Batailles Titans (CSV)</h2>
+                    <input type="file" id="titanInput" accept=".csv" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer">
+                </div>
+                <div>
+                    <div id="titanMeta" class="text-[11px] font-mono text-slate-400 font-semibold">0 batailles en DB</div>
+                    <div id="titanImportLog" class="text-[10px] font-mono text-emerald-400 h-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Container -->
+        <div id="dashboard" class="space-y-6">
+            <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.51)</div>
+                <p class="text-sm">Importe tes fichiers pour afficher le tableau de bord des guerres.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale de sélection rapide des adversaires -->
+    <div id="enemyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
+                    <span>🛡️</span> Choisir un adversaire
+                </h3>
+                <button onclick="closeEnemyModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
+            </div>
+            <div class="p-3 border-b border-slate-800 bg-slate-950/30">
+                <input type="text" id="enemySearchInput" placeholder="Rechercher une guilde..." oninput="filterEnemyModalList()" class="w-full text-xs bg-slate-950 text-slate-200 border border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-amber-500/50">
+            </div>
+            <div id="enemyModalList" class="p-3 overflow-y-auto space-y-1.5 flex-1">
+                <!-- Rempli dynamiquement -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale de détail d'un combat -->
+    <div id="battleModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
+                    <span>⚔️</span> Détail de l'affrontement (Slot <span id="modalSlotNum">--</span>)
+                </h3>
+                <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
+            </div>
+            <div id="battleModalContent" class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+                <!-- Rempli dynamiquement -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let appState = {
+            wars: {},
+            activeKey: null,
+            heroes: [],
+            titans: [],
+            currentView: 'attacks'
+        };
+
+        const FORTIFICATIONS = [
+            { name: "Mage Academy", slots: [1, 2], bonus: 40 },
+            { name: "Lighthouse", slots: [3, 4], bonus: 40 },
+            { name: "Barracks", slots: [5, 6], bonus: 40 },
+            { name: "Bridge", slots: [7, 8, 9], bonus: 60 },
+            { name: "Spring of Elements", slots: [10, 11, 12], bonus: 60 },
+            { name: "Foundry", slots: [13, 14, 15], bonus: 60 },
+            { name: "Gate of Nature", slots: [16, 17, 18], bonus: 60 },
+            { name: "Bastion of Fire", slots: [19, 20, 21], bonus: 60 },
+            { name: "Bastion of Ice", slots: [22, 23, 24], bonus: 60 },
+            { name: "Citadel", slots: [25, 26, 27, 28, 29, 30], bonus: 120 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+
+            const jsonInput = document.getElementById('jsonInput');
+            const heroInput = document.getElementById('heroInput');
+            const titanInput = document.getElementById('titanInput');
+
+            if (jsonInput) jsonInput.addEventListener('change', handleJSONImport);
+            if (heroInput) heroInput.addEventListener('change', (e) => handleCSV(e, 'hero'));
+            if (titanInput) titanInput.addEventListener('change', (e) => handleCSV(e, 'titan'));
+
+            updateNavigationUI();
+            updateDatabaseUI();
+            if (appState.activeKey) {
+                renderDashboard();
+            }
+        });
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('hw_gvg_db', JSON.stringify(appState));
+            } catch(err) {
+                console.warn("Erreur sauvegarde localStorage :", err);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('hw_gvg_db');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    appState.wars = parsed.wars || {};
+                    appState.activeKey = parsed.activeKey || null;
+                    appState.heroes = parsed.heroes || [];
+                    appState.titans = parsed.titans || [];
+                }
+            } catch(err) {
+                console.warn("Erreur chargement localStorage :", err);
+            }
+        }
+
+        function exportGlobalBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `herowars_gvg_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportCSV(type) {
+            const rows = type === 'hero' ? appState.heroes : appState.titans;
+            const label = type === 'hero' ? 'heros' : 'titans';
+            if (!rows || rows.length === 0) return false;
+
+            const csv = Papa.unparse(rows);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", url);
+            downloadAnchor.setAttribute("download", `database_batailles_${label}_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            return true;
+        }
+
+        function exportAllBattlesCSV() {
+            const hasHeroes = appState.heroes && appState.heroes.length > 0;
+            const hasTitans = appState.titans && appState.titans.length > 0;
+            if (!hasHeroes && !hasTitans) {
+                alert("Aucune donnée de batailles en base à exporter.");
+                return;
+            }
+            if (hasHeroes) exportCSV('hero');
+            if (hasTitans) {
+                setTimeout(() => { exportCSV('titan'); }, 300);
+            }
+        }
+
+        function resetDatabase() {
+            if (confirm("Veux-tu vraiment purger toute la database locale ?")) {
+                localStorage.removeItem('hw_gvg_db');
+                appState = { wars: {}, activeKey: null, heroes: [], titans: [], currentView: 'attacks' };
+                document.getElementById('jsonInput').value = '';
+                document.getElementById('heroInput').value = '';
+                document.getElementById('titanInput').value = '';
+                document.getElementById('heroImportLog').innerText = '';
+                document.getElementById('titanImportLog').innerText = '';
+                updateNavigationUI();
+                updateDatabaseUI();
+                renderDashboard();
+            }
+        }
+
+        function deleteActiveWar() {
+            if (!appState.activeKey || !appState.wars[appState.activeKey]) return;
+            if (confirm(`Voulez-vous supprimer les données de la guerre sélectionnée ?`)) {
+                delete appState.wars[appState.activeKey];
+                const keys = getSortedWarKeys();
+                appState.activeKey = keys.length > 0 ? keys[0] : null;
+                saveToLocalStorage();
+                updateNavigationUI();
+                renderDashboard();
+            }
+        }
+
+        function getSortedWarKeys() {
+            return Object.keys(appState.wars).sort();
+        }
+
+        function getEnemyName(warData) {
+            return warData.enemyName || warData.data?.enemyClan?.title || warData.enemyClanName || "Guilde Adverse";
+        }
+
+        function switchView(view) {
+            appState.currentView = view;
+            renderDashboard();
+        }
+
+        function navigateWar(direction) {
+            const keys = getSortedWarKeys();
+            if (keys.length === 0) return;
+            let currentIndex = keys.indexOf(appState.activeKey);
+            if (currentIndex === -1) {
+                currentIndex = 0;
+            } else {
+                currentIndex += direction;
+                if (currentIndex < 0) currentIndex = 0;
+                if (currentIndex >= keys.length) currentIndex = keys.length - 1;
+            }
+            appState.activeKey = keys[currentIndex];
+            saveToLocalStorage();
+            updateNavigationUI();
+            renderDashboard();
+        }
+
+        function navigateEnemyWar(direction) {
+            const keys = getSortedWarKeys();
+            if (keys.length === 0 || !appState.activeKey) return;
+            const currentEnemy = getEnemyName(appState.wars[appState.activeKey]);
+            const enemyWarKeys = keys.filter(k => getEnemyName(appState.wars[k]) === currentEnemy);
+            if (enemyWarKeys.length <= 1) return;
+            let currentIdx = enemyWarKeys.indexOf(appState.activeKey);
+            if (currentIdx === -1) return;
+            currentIdx += direction;
+            if (currentIdx < 0) currentIdx = 0;
+            if (currentIdx >= enemyWarKeys.length) currentIdx = enemyWarKeys.length - 1;
+            appState.activeKey = enemyWarKeys[currentIdx];
+            saveToLocalStorage();
+            updateNavigationUI();
+            renderDashboard();
+        }
+
+        function openEnemyModal() {
+            const keys = getSortedWarKeys();
+            if (keys.length === 0) return;
+
+            let enemyMap = new Map();
+            keys.forEach(k => {
+                let wData = appState.wars[k];
+                let eName = getEnemyName(wData);
+                let wDateObj = extractDateForWar(k, wData);
+
+                if (!enemyMap.has(eName)) {
+                    enemyMap.set(eName, { name: eName, latestKey: k, latestDateObj: wDateObj, count: 1 });
+                } else {
+                    let info = enemyMap.get(eName);
+                    info.count++;
+                    if (wDateObj.iso > info.latestDateObj.iso || (wDateObj.iso === info.latestDateObj.iso && k > info.latestKey)) {
+                        info.latestKey = k;
+                        info.latestDateObj = wDateObj;
+                    }
+                }
+            });
+
+            let enemiesList = Array.from(enemyMap.values());
+            enemiesList.sort((a, b) => a.name.localeCompare(b.name));
+
+            window._allEnemiesCache = enemiesList;
+            renderEnemyModalList(enemiesList);
+
+            document.getElementById('enemySearchInput').value = '';
+            document.getElementById('enemyModal').classList.remove('hidden');
+            setTimeout(() => { document.getElementById('enemySearchInput').focus(); }, 50);
+        }
+
+        function closeEnemyModal() {
+            document.getElementById('enemyModal').classList.add('hidden');
+        }
+
+        function filterEnemyModalList() {
+            const query = document.getElementById('enemySearchInput').value.toLowerCase();
+            const filtered = window._allEnemiesCache.filter(e => e.name.toLowerCase().includes(query));
+            renderEnemyModalList(filtered);
+        }
+
+        function renderEnemyModalList(list) {
+            const container = document.getElementById('enemyModalList');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">Aucun adversaire trouvé.</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(e => `
+                <div onclick="selectEnemyWar('${e.latestKey}')" class="flex justify-between items-center bg-slate-950 hover:bg-amber-950/20 border border-slate-800 hover:border-amber-500/40 p-3 rounded-xl cursor-pointer transition">
+                    <div>
+                        <div class="font-bold text-slate-200 text-xs">${e.name}</div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">${e.count} affrontement(s) enregistré(s)</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[11px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold">
+                            ${e.latestDateObj.fullDate}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectEnemyWar(warKey) {
+            appState.activeKey = warKey;
+            saveToLocalStorage();
+            updateNavigationUI();
+            renderDashboard();
+            closeEnemyModal();
+        }
+
+        // --- DESIGN DES VIGNETTES HORS-LIGNE & GESTION DES ICÔNES ---
+        function getHeroBadgeColor(name) {
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const colors = [
+                'from-blue-600 to-indigo-900 border-blue-400/60 shadow-blue-500/20',
+                'from-purple-600 to-indigo-950 border-purple-400/60 shadow-purple-500/20',
+                'from-emerald-600 to-teal-950 border-emerald-400/60 shadow-emerald-500/20',
+                'from-amber-600 to-orange-950 border-amber-400/60 shadow-amber-500/20',
+                'from-rose-600 to-red-950 border-rose-400/60 shadow-rose-500/20',
+                'from-cyan-600 to-blue-950 border-cyan-400/60 shadow-cyan-500/20',
+                'from-fuchsia-600 to-purple-950 border-fuchsia-400/60 shadow-fuchsia-500/20'
+            ];
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        // Dictionnaire optionnel pour associer des émojis thématiques ou symboles par héros connus si souhaité
+        const HERO_EMOJIS = {
+            'Astaroth': '🛡️', 'K\'arkh': '🐙', 'Jorgen': '⏳', 'Martha': '🍵', 'Celeste': '☯️',
+            'Oya': '🐅', 'Yasmine': '🗡️', 'Dante': '👁️', 'Iris': '🦋', 'Octavia': '✨',
+            'Lara': '🏹', 'Heidi': '🧪', 'Amira': '👑', 'Cleaver': '🥩', 'Peppy': '💣',
+            'Axel': '🐾', 'Cain': '🐾', 'Oliver': '🐾', 'Merlin': '🐾', 'Albus': '🐾', 'Biscuit': '🐾', 'Mara': '🐾'
+        };
+
+        function parseTeamString(rawStr, isAttacker) {
+            if (!rawStr || typeof rawStr !== 'string') {
+                return { pet: { name: '###', power: '' }, heroes: Array(5).fill({ name: '###', power: '' }) };
+            }
+
+            let parts = rawStr.trim().split(/\s+/).filter(s => s.length > 0);
+            let petRaw = '###';
+            let heroesRaw = [];
+
+            if (isAttacker) {
+                if (parts.length > 0) petRaw = parts[0];
+                heroesRaw = parts.slice(1, 6);
+            } else {
+                heroesRaw = parts.slice(0, 5);
+                if (parts.length >= 6) {
+                    petRaw = parts[5];
+                }
+            }
+
+            while (heroesRaw.length < 5) {
+                heroesRaw.push('###');
+            }
+
+            function formatItem(itemStr) {
+                if (!itemStr || itemStr === '###') return { name: '###', power: '' };
+                let match = itemStr.match(/^(.+?)\((.+?)\)$/);
+                if (match) {
+                    return { name: match[1].trim(), power: match[2].trim() };
+                }
+                return { name: itemStr, power: '' };
+            }
+
+            return {
+                pet: formatItem(petRaw),
+                heroes: heroesRaw.map(formatItem)
+            };
+        }
+
+        function renderTeamGrid(rawStr, isAttacker) {
+            const teamData = parseTeamString(rawStr, isAttacker);
+            
+            let slotsArray = [];
+            if (isAttacker) {
+                slotsArray = [
+                    { ...teamData.pet, isPet: true, label: 'Familier' },
+                    ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, label: `Héros ${i+1}` }))
+                ];
+            } else {
+                slotsArray = [
+                    ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, label: `Héros ${i+1}` })),
+                    { ...teamData.pet, isPet: true, label: 'Familier' }
+                ];
+            }
+
+            return `
+                <div class="grid grid-cols-6 gap-2">
+                    ${slotsArray.map(slot => {
+                        let isEmpty = slot.name === '###';
+                        if (isEmpty) {
+                            return `
+                                <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-950 border border-slate-900 text-slate-700 text-center h-20 opacity-40">
+                                    <span class="text-[9px] font-mono">${slot.isPet ? 'FAM' : 'VIDE'}</span>
+                                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs">?</div>
+                                    <span class="text-[9px]">-</span>
+                                </div>
+                            `;
+                        }
+
+                        let initial = slot.name.charAt(0).toUpperCase();
+                        let customEmoji = HERO_EMOJIS[slot.name] || (slot.isPet ? '🦊' : initial);
+                        let bgGradient = slot.isPet ? 'from-amber-500 to-orange-700 border-amber-300 shadow-amber-500/20' : getHeroBadgeColor(slot.name);
+
+                        return `
+                            <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 text-center h-20 transition group" title="${escapeHtml(slot.name)} (${slot.power})">
+                                <span class="text-[9px] uppercase tracking-tighter text-slate-400 font-mono">${slot.isPet ? 'Fam' : slot.label.replace('Héros ', 'H')}</span>
+                                
+                                <!-- Vignette Avatar Stylisée Haute Qualité (Idéale pour le local) -->
+                                <div class="relative w-9 h-9 rounded-full bg-gradient-to-br ${bgGradient} border-2 flex items-center justify-center shadow-md group-hover:scale-105 transition transform">
+                                    <span class="text-sm font-black text-white drop-shadow-md">${customEmoji}</span>
+                                    ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[9px] bg-slate-950 px-1 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
+                                </div>
+
+                                <div class="w-full truncate">
+                                    <div class="text-[10px] font-bold text-slate-200 truncate px-0.5">${escapeHtml(slot.name)}</div>
+                                    <div class="text-[9px] font-mono text-amber-400/90 leading-none">${slot.power ? formatPower(slot.power) : ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        window._activeBattlesMap = new Map();
+
+        function openBattleModal(battleId) {
+            const b = window._activeBattlesMap.get(battleId);
+            if (!b) return;
+
+            document.getElementById('modalSlotNum').innerText = b.slot;
+            const contentEl = document.getElementById('battleModalContent');
+
+            contentEl.innerHTML = `
+                <div class="grid grid-cols-2 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase">Date & Heure</span>
+                        <span class="font-mono font-bold text-slate-200">${b.dateTimeFull}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase">Type de Combat</span>
+                        <span class="font-semibold ${b.type === 'Héros' ? 'text-blue-400' : 'text-purple-400'}">${b.type}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <span class="font-bold text-cyan-400 text-xs">⚔️ Attaquant : ${escapeHtml(b.attacker)}</span>
+                            ${b.attPower ? `<span class="font-mono text-cyan-300 bg-cyan-950/50 px-1.5 py-0.5 rounded text-[11px] font-bold">${b.attPower}</span>` : ''}
+                        </div>
+                        
+                        <div class="space-y-1">
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block">Équipe Attaque (Familier à gauche) :</span>
+                            ${renderTeamGrid(b.rawAttTeam, true)}
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <span class="font-bold text-orange-400 text-xs">🛡️ Défenseur (Slot ${b.slot}) : ${escapeHtml(b.defender)}</span>
+                            ${b.defPower ? `<span class="font-mono text-purple-300 bg-purple-950/50 px-1.5 py-0.5 rounded text-[11px] font-bold">${b.defPower}</span>` : ''}
+                        </div>
+
+                        <div class="space-y-1">
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block">Équipe Défense (Familier à droite) :</span>
+                            ${renderTeamGrid(b.rawDefTeam, false)}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase">Résultat & Points</span>
+                        <span class="font-bold text-sm ${b.isSuccessful ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${b.points} pts comptabilisés (Cumul slot : ${b.cumulAfter}/20 pts)
+                        </span>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 rounded font-bold ${b.isSuccessful ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                        ${b.isSuccessful ? 'Succès / Validé' : 'Bloqué / Partiel'}
+                    </span>
+                </div>
+            `;
+
+            document.getElementById('battleModal').classList.remove('hidden');
+        }
+
+        function closeBattleModal() {
+            document.getElementById('battleModal').classList.add('hidden');
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function handleJSONImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const parsedData = JSON.parse(evt.target.result);
+                    if (parsedData && typeof parsedData === 'object' && parsedData.wars && Array.isArray(parsedData.heroes) && Array.isArray(parsedData.titans)) {
+                        if (confirm("Restaurer la sauvegarde globale complète ?")) {
+                            appState.wars = { ...appState.wars, ...parsedData.wars };
+                            appState.heroes = mergeUniqueRows(appState.heroes, parsedData.heroes);
+                            appState.titans = mergeUniqueRows(appState.titans, parsedData.titans);
+                            const keys = getSortedWarKeys();
+                            if (!appState.activeKey && keys.length > 0) appState.activeKey = keys[0];
+                            saveToLocalStorage();
+                            updateNavigationUI();
+                            updateDatabaseUI();
+                            if (appState.activeKey) renderDashboard();
+                            alert("Restauration réussie !");
+                        }
+                    } else {
+                        const fileName = file.name;
+                        appState.wars[fileName] = parsedData;
+                        appState.activeKey = fileName;
+                        saveToLocalStorage();
+                        updateNavigationUI();
+                        renderDashboard();
+                    }
+                    e.target.value = '';
+                } catch(err) {
+                    alert("Erreur de lecture du JSON : " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function getDateFromSeasonDay(seasonDayStr) {
+            if (!seasonDayStr) return null;
+            const cleanStr = String(seasonDayStr).replace('-', '_');
+            const parts = cleanStr.split('_');
+            if (parts.length < 2) return null;
+
+            const yearWeek = parts[0];
+            const dayOfWeekStr = parts[1];
+            if (yearWeek.length < 6) return null;
+
+            const year = parseInt(yearWeek.slice(0, 4), 10);
+            const week = parseInt(yearWeek.slice(4), 10);
+            const dayOfWeek = parseInt(dayOfWeekStr, 10);
+
+            if (isNaN(year) || isNaN(week) || isNaN(dayOfWeek)) return null;
+
+            const simpleDate = new Date(Date.UTC(year, 0, 4));
+            const dayIso = simpleDate.getUTCDay() || 7;
+            simpleDate.setUTCDate(simpleDate.getUTCDate() - dayIso + 1);
+            simpleDate.setUTCDate(simpleDate.getUTCDate() + (week - 1) * 7 + (dayOfWeek - 1));
+
+            const yyyy = simpleDate.getUTCFullYear();
+            const mm = String(simpleDate.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(simpleDate.getUTCDate()).padStart(2, '0');
+
+            return {
+                shortDate: `${dd}/${mm}`,
+                fullDate: `${dd}/${mm}`,
+                iso: `${yyyy}-${mm}-${dd}`
+            };
+        }
+
+        function extractDateForWar(warKey, warData) {
+            if (warData && warData.season_day) {
+                const seasonDate = getDateFromSeasonDay(warData.season_day);
+                if (seasonDate) return seasonDate;
+            }
+            const match = warKey.match(/(\d{4})[-_]?(\d{2})[-_]?(\d{2})/);
+            if (match) {
+                return { shortDate: `${match[3]}/${match[2]}`, fullDate: `${match[3]}/${match[2]}`, iso: `${match[1]}-${match[2]}-${match[3]}` };
+            }
+            return { shortDate: '--/--', fullDate: '--/--', iso: '' };
+        }
+
+        function updateNavigationUI() {
+            const keys = getSortedWarKeys();
+            const dateTextEl = document.getElementById('warDateText');
+            if (!dateTextEl) return;
+            if (keys.length === 0) {
+                dateTextEl.innerText = "--/--";
+                return;
+            }
+            if (!appState.activeKey || !appState.wars[appState.activeKey]) appState.activeKey = keys[0];
+            const activeData = appState.wars[appState.activeKey];
+            const warDateObj = extractDateForWar(appState.activeKey, activeData);
+            dateTextEl.innerText = warDateObj.fullDate;
+        }
+
+        function handleCSV(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const incomingRows = results.data;
+                    const previousCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
+                    if (type === 'hero') {
+                        appState.heroes = mergeUniqueRows(appState.heroes, incomingRows);
+                    } else {
+                        appState.titans = mergeUniqueRows(appState.titans, incomingRows);
+                    }
+                    const newCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
+                    const addedCount = newCount - previousCount;
+                    const logEl = document.getElementById(type === 'hero' ? 'heroImportLog' : 'titanImportLog');
+                    if (logEl) logEl.innerText = `+${addedCount} batailles (${incomingRows.length} analysées)`;
+                    saveToLocalStorage();
+                    updateDatabaseUI();
+                    if (appState.activeKey) renderDashboard();
+                    e.target.value = '';
+                },
+                error: function(err) { alert("Erreur CSV : " + err.message); }
+            });
+        }
+
+        function mergeUniqueRows(existingRows, newRows) {
+            const uniqueMap = new Map();
+            existingRows.forEach(row => {
+                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+                uniqueMap.set(key, row);
+            });
+            newRows.forEach(row => {
+                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+                uniqueMap.set(key, row);
+            });
+            return Array.from(uniqueMap.values());
+        }
+
+        function updateDatabaseUI() {
+            const hMeta = document.getElementById('heroMeta');
+            const tMeta = document.getElementById('titanMeta');
+            if (hMeta) hMeta.innerText = `${appState.heroes.length} batailles en DB`;
+            if (tMeta) tMeta.innerText = `${appState.titans.length} batailles en DB`;
+        }
+
+        function formatPower(val) {
+            let num = parseInt(val);
+            if (isNaN(num) || num === 0) return val;
+            return num.toLocaleString('fr-FR');
+        }
+
+        function extractTimeOnly(dateTimeStr) {
+            if (!dateTimeStr) return '';
+            const match = dateTimeStr.match(/(\d{2}:\d{2})/);
+            return match ? match[1] : dateTimeStr;
+        }
+
+        function formatLoginDate(tsVal) {
+            let num = Number(tsVal);
+            if (isNaN(num) || num <= 0) return 'Inconnue';
+            const date = new Date(num > 1e12 ? num : num * 1000);
+            if (isNaN(date.getTime())) return 'Inconnue';
+            const dd = String(date.getUTCDate()).padStart(2, '0');
+            const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const yyyy = date.getUTCFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        }
+
+        function renderDashboard() {
+            const statusEl = document.getElementById('globalStatus');
+            const dash = document.getElementById('dashboard');
+            if (!dash) return;
+
+            if (!appState.activeKey || !appState.wars[appState.activeKey]) {
+                if (statusEl) statusEl.innerText = `✅ DB active : 0 guerre(s) | ${appState.heroes.length + appState.titans.length} tot. batailles`;
+                dash.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
+                        <div class="text-xl font-medium text-slate-300 mb-2">Aucune guerre active</div>
+                        <p class="text-sm">Importe un fichier JSON de guerre ou une sauvegarde globale pour commencer.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (statusEl) statusEl.innerText = `✅ DB active : ${Object.keys(appState.wars).length} guerre(s) | ${appState.heroes.length + appState.titans.length} tot. batailles`;
+
+            const data = appState.wars[appState.activeKey];
+            const enemyName = getEnemyName(data);
+            const enemySlots = data.data?.enemySlots || {};
+            const ourSlots = data.data?.ourSlots || {};
+            const ourClanName = data.data?.ourClan?.title || "Notre Clan";
+            const maxAttacks = 30;
+            const warDateObj = extractDateForWar(appState.activeKey, data);
+            let warDateJs = warDateObj.iso ? new Date(warDateObj.iso + 'T00:00:00Z') : new Date();
+
+            const allKeys = getSortedWarKeys();
+            const enemyWarKeys = allKeys.filter(k => getEnemyName(appState.wars[k]) === enemyName);
+            const enemyWarIndex = enemyWarKeys.indexOf(appState.activeKey);
+            const hasMultipleEnemyWars = enemyWarKeys.length > 1;
+
+            let enemyHeroMap = {}, enemyTitanMap = {};
+            let enemyUserIds = new Set();
+            for (let [sId, sInfo] of Object.entries(enemySlots)) {
+                if (sInfo && sInfo.user && sInfo.user.id) {
+                    let uId = String(sInfo.user.id);
+                    enemyUserIds.add(uId);
+                    let slotNum = parseInt(sId);
+                    let teamType = (sInfo.team && sInfo.team[0] && sInfo.team[0]['1'] && sInfo.team[0]['1'].type) || 'hero';
+                    if (teamType === 'titan') enemyTitanMap[uId] = slotNum;
+                    else enemyHeroMap[uId] = slotNum;
+                }
+            }
+
+            let ourHeroMap = {}, ourTitanMap = {};
+            let ourUserIds = new Set();
+            for (let [sId, sInfo] of Object.entries(ourSlots)) {
+                if (sInfo && sInfo.user && sInfo.user.id) {
+                    let uId = String(sInfo.user.id);
+                    ourUserIds.add(uId);
+                    let slotNum = parseInt(sId);
+                    let teamType = (sInfo.team && sInfo.team[0] && sInfo.team[0]['1'] && sInfo.team[0]['1'].type) || 'hero';
+                    if (teamType === 'titan') ourTitanMap[uId] = slotNum;
+                    else ourHeroMap[uId] = slotNum;
+                }
+            }
+
+            let slotToFort = {};
+            FORTIFICATIONS.forEach(f => { f.slots.forEach(s => slotToFort[s] = f.name); });
+
+            let activeAttackerIds = new Set();
+
+            function extractCsvDateDDMM(dateTimeStr) {
+                if (!dateTimeStr) return '';
+                const matches = dateTimeStr.match(/(\d{2})[-/](\d{2})/g);
+                if (!matches) return false;
+                return matches.some(m => m.replace(/-/g, '/') === warDateObj.shortDate);
+            }
+
+            function collectAttackersFromRows(rows) {
+                if (!rows || !Array.isArray(rows)) return;
+                rows.forEach(row => {
+                    const dateTime = row['date time'] || '';
+                    if (!extractCsvDateDDMM(dateTime)) return;
+                    let attId = String(row['attacker id'] || '');
+                    if (attId) activeAttackerIds.add(attId);
+                });
+            }
+
+            collectAttackersFromRows(appState.heroes);
+            collectAttackersFromRows(appState.titans);
+
+            function getInactivePlayersFromSlots(slotsData, clanTitle) {
+                let inactiveMap = new Map();
+                for (let [sId, sInfo] of Object.entries(slotsData)) {
+                    if (sInfo && sInfo.user && sInfo.user.id) {
+                        let uId = String(sInfo.user.id);
+                        if (!activeAttackerIds.has(uId) && !inactiveMap.has(uId)) {
+                            let tsVal = Number(sInfo.user.lastLoginTime || sInfo.user.last_login_time || 0);
+                            let loginDateJs = (tsVal > 0) ? new Date(tsVal > 1e12 ? tsVal : tsVal * 1000) : null;
+                            
+                            let daysInactive = 0;
+                            if (loginDateJs && !isNaN(loginDateJs.getTime())) {
+                                let diffTime = warDateJs.getTime() - loginDateJs.getTime();
+                                daysInactive = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+                            }
+
+                            inactiveMap.set(uId, {
+                                name: sInfo.user.name || 'Inconnu',
+                                clan: clanTitle,
+                                daysInactive: daysInactive,
+                                lastLogin: formatLoginDate(tsVal)
+                            });
+                        }
+                    }
+                }
+                let list = Array.from(inactiveMap.values());
+                list.sort((a, b) => b.daysInactive - a.daysInactive);
+                return list;
+            }
+
+            const ourInactives = getInactivePlayersFromSlots(ourSlots, ourClanName);
+            const enemyInactives = getInactivePlayersFromSlots(enemySlots, enemyName);
+
+            window._activeBattlesMap.clear();
+            let battleCounter = 0;
+
+            function calculateModeData(isDefenseMode) {
+                let slotPoints = {};
+                for (let i = 1; i <= 30; i++) slotPoints[i] = 0;
+                let fortAttacks = {};
+                FORTIFICATIONS.forEach(f => fortAttacks[f.name] = []);
+                let validCount = 0;
+
+                let rawAttacksList = [];
+
+                function collectRows(rows, heroMap, titanMap, typeLabel) {
+                    if (!rows || !Array.isArray(rows)) return;
+                    rows.forEach(row => {
+                        const dateTime = row['date time'] || '';
+                        if (!extractCsvDateDDMM(dateTime)) return;
+
+                        let attId = String(row['attacker id'] || '');
+                        let defId = String(row['defender id'] || '');
+                        let pts = parseInt(row['points'] || 0);
+
+                        if (!isDefenseMode) {
+                            let sId = heroMap[defId] !== undefined ? heroMap[defId] : titanMap[defId];
+                            if (sId !== undefined && ourUserIds.has(attId) && enemyUserIds.has(defId)) {
+                                battleCounter++;
+                                let bId = `atk_${battleCounter}`;
+                                let bObj = {
+                                    id: bId,
+                                    attacker: row['att name'] || attId || 'Inconnu',
+                                    defender: row['def name'] || defId || 'Inconnu',
+                                    attId: attId,
+                                    defId: defId,
+                                    attPower: formatPower(row['att power'] || row['attacker power'] || row['power'] || 0),
+                                    defPower: formatPower(row['def power'] || row['defender power'] || row['target power'] || 0),
+                                    slot: sId, points: isNaN(pts) ? 0 : pts, type: typeLabel,
+                                    timeOnly: extractTimeOnly(dateTime),
+                                    dateTimeFull: dateTime,
+                                    rawAttTeam: row['att team'] || row['attacker team'] || '',
+                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || ''
+                                };
+                                window._activeBattlesMap.set(bId, bObj);
+                                rawAttacksList.push(bObj);
+                                validCount++;
+                            }
+                        } else {
+                            let sId = heroMap[defId] !== undefined ? heroMap[defId] : titanMap[defId];
+                            if (sId !== undefined && enemyUserIds.has(attId) && ourUserIds.has(defId)) {
+                                battleCounter++;
+                                let bId = `def_${battleCounter}`;
+                                let bObj = {
+                                    id: bId,
+                                    attacker: row['att name'] || attId || 'Inconnu',
+                                    defender: row['def name'] || defId || 'Inconnu',
+                                    attId: attId,
+                                    defId: defId,
+                                    attPower: formatPower(row['att power'] || row['attacker power'] || row['power'] || 0),
+                                    defPower: formatPower(row['def power'] || row['defender power'] || row['target power'] || 0),
+                                    slot: sId, points: isNaN(pts) ? 0 : pts, type: typeLabel,
+                                    timeOnly: extractTimeOnly(dateTime),
+                                    dateTimeFull: dateTime,
+                                    rawAttTeam: row['att team'] || row['attacker team'] || '',
+                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || ''
+                                };
+                                window._activeBattlesMap.set(bId, bObj);
+                                rawAttacksList.push(bObj);
+                                validCount++;
+                            }
+                        }
+                    });
+                }
+
+                const activeHeroMap = isDefenseMode ? ourHeroMap : enemyHeroMap;
+                const activeTitanMap = isDefenseMode ? ourTitanMap : enemyTitanMap;
+
+                collectRows(appState.heroes, activeHeroMap, {}, 'Héros');
+                collectRows(appState.titans, {}, activeTitanMap, 'Titan');
+
+                let attacksBySlot = {};
+                for (let i = 1; i <= 30; i++) attacksBySlot[i] = [];
+
+                rawAttacksList.forEach(atk => {
+                    attacksBySlot[atk.slot].push(atk);
+                });
+
+                Object.keys(attacksBySlot).forEach(sId => {
+                    let slotList = attacksBySlot[sId];
+                    slotList.sort((a, b) => a.dateTimeFull.localeCompare(b.dateTimeFull));
+
+                    let currentSlotTotal = 0;
+                    slotList.forEach(atk => {
+                        let before = currentSlotTotal;
+                        let added = atk.points;
+
+                        if (before >= 20) {
+                            added = 0;
+                        } else if (before + added > 20) {
+                            added = 20 - before;
+                        }
+
+                        currentSlotTotal += added;
+                        let after = currentSlotTotal;
+
+                        atk.cumulBefore = before;
+                        atk.points = added;
+                        atk.cumulAfter = after;
+                        atk.isSuccessful = (after === 20) || (before >= 20 && added > 0);
+
+                        let fName = slotToFort[sId];
+                        if (fName) {
+                            fortAttacks[fName].push(atk);
+                        }
+                    });
+                    slotPoints[sId] = currentSlotTotal;
+                });
+
+                Object.keys(fortAttacks).forEach(fName => {
+                    fortAttacks[fName].sort((a, b) => { 
+                        if (a.slot !== b.slot) return a.slot - b.slot; 
+                        return a.dateTimeFull.localeCompare(b.dateTimeFull); 
+                    });
+                });
+
+                let rawPoints = Object.values(slotPoints).reduce((a, b) => a + b, 0);
+                let totalBonus = 0;
+                let fortResults = FORTIFICATIONS.map(f => {
+                    let allWon = f.slots.every(s => slotPoints[s] >= 20);
+                    if (allWon) totalBonus += f.bonus;
+                    return { ...f, allWon, attacks: fortAttacks[f.name] };
+                });
+
+                return {
+                    validCount,
+                    totalScore: rawPoints + totalBonus,
+                    fortResults
+                };
+            }
+
+            const attackData = calculateModeData(false);
+            const defenseData = calculateModeData(true);
+            const currentData = appState.currentView === 'attacks' ? attackData : defenseData;
+
+            const ourScore = attackData.totalScore;
+            const enemyScore = defenseData.totalScore;
+            
+            let ourScoreColor = ourScore > enemyScore ? "text-emerald-400 font-black" : (enemyScore > ourScore ? "text-rose-400 font-black" : "text-amber-400 font-black");
+            let enemyScoreColor = enemyScore > ourScore ? "text-emerald-400 font-black" : (ourScore > enemyScore ? "text-rose-400 font-black" : "text-amber-400 font-black");
+
+            dash.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-lg hover:border-amber-500/50 transition cursor-pointer group" onclick="openEnemyModal()" title="Cliquez pour choisir un adversaire">
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1 flex justify-between items-center">
+                            <span>Adversaire (Changer 🔍)</span>
+                            ${hasMultipleEnemyWars ? `<span class="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded font-mono">${enemyWarIndex + 1}/${enemyWarKeys.length}</span>` : ''}
+                        </div>
+                        <div class="flex items-center justify-between gap-1 my-1">
+                            <button onclick="event.stopPropagation(); navigateEnemyWar(-1)" ${!hasMultipleEnemyWars || enemyWarIndex === 0 ? 'disabled class="opacity-20 cursor-not-allowed text-xs text-slate-500 p-1"' : 'class="text-xs text-amber-400 hover:text-amber-300 font-bold p-1 cursor-pointer transition"'}>◀</button>
+                            <div class="text-base font-bold text-amber-400 group-hover:text-amber-300 truncate px-1 text-center" title="${enemyName}">${enemyName}</div>
+                            <button onclick="event.stopPropagation(); navigateEnemyWar(1)" ${!hasMultipleEnemyWars || enemyWarIndex === enemyWarKeys.length - 1 ? 'disabled class="opacity-20 cursor-not-allowed text-xs text-slate-500 p-1"' : 'class="text-xs text-amber-400 hover:text-amber-300 font-bold p-1 cursor-pointer transition"'}>▶</button>
+                        </div>
+                        <div class="text-[10px] text-slate-500 text-center">${hasMultipleEnemyWars ? 'Affrontements multiples' : 'Affrontement unique'}</div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Nos Attaques</div>
+                        <div class="text-lg font-bold text-cyan-400">${attackData.validCount} / ${maxAttacks}</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Notre Score Final</div>
+                        <div class="text-xl ${ourScoreColor}">${ourScore} pts</div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Attaques Adverses</div>
+                        <div class="text-lg font-bold text-orange-400">${defenseData.validCount} / ${maxAttacks}</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Score Adverse Final</div>
+                        <div class="text-xl ${enemyScoreColor}">${enemyScore} pts</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-3">
+                        <h2 class="text-base font-bold text-slate-200">
+                            Détail des Fortifications <span class="text-xs font-normal text-slate-400 ml-2">(Cliquez sur une ligne pour voir les vignettes)</span>
+                        </h2>
+                        <div class="inline-flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                            <button onclick="switchView('attacks')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition cursor-pointer ${appState.currentView === 'attacks' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                                ⚔️ Attaques
+                            </button>
+                            <button onclick="switchView('defenses')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition cursor-pointer ${appState.currentView === 'defenses' ? 'bg-rose-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                                🛡️ Défenses
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        ${currentData.fortResults.map(f => `
+                            <div class="bg-slate-950 border ${f.allWon ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-800'} p-4 rounded-xl space-y-3">
+                                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                                    <div>
+                                        <span class="font-bold text-slate-200 text-sm">${f.name}</span>
+                                        <span class="text-xs text-slate-500 ml-2">(Slots: ${f.slots.join(', ')})</span>
+                                    </div>
+                                    <span class="text-xs px-2 py-0.5 rounded font-semibold ${f.allWon ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}">
+                                        ${f.allWon ? `Validée (+${f.bonus} pts)` : `Bonus: +${f.bonus} pts`}
+                                    </span>
+                                </div>
+                                <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                    ${f.attacks.length === 0 ? `<div class="text-xs text-slate-500 italic py-1">Aucune bataille enregistrée pour cette date.</div>` : 
+                                        f.attacks.map(atk => {
+                                            const attackerColor = appState.currentView === 'attacks' ? 'text-cyan-300' : 'text-orange-300';
+                                            const powerBg = appState.currentView === 'attacks' ? 'bg-cyan-950/40 text-cyan-300' : 'bg-orange-950/40 text-orange-300';
+                                            const pointsColorClass = atk.isSuccessful ? 'text-emerald-400' : 'text-rose-500 font-black';
+
+                                            return `
+                                            <div onclick="openBattleModal('${atk.id}')" class="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs bg-slate-900 hover:bg-slate-850 hover:border-amber-500/40 px-3 py-2 rounded-lg border border-slate-800/80 gap-2 cursor-pointer transition group">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-bold text-amber-300 bg-amber-950/40 border border-amber-600/30 px-1.5 py-0.5 rounded">S${atk.slot}</span>
+                                                    
+                                                    <div class="flex items-baseline gap-1">
+                                                        <span class="${attackerColor} font-semibold group-hover:underline">${atk.attacker}</span>
+                                                        ${atk.attPower ? `<span class="text-[11px] font-mono font-bold ${powerBg} px-1 rounded">${atk.attPower}</span>` : ''}
+                                                    </div>
+
+                                                    <span class="text-slate-500 font-bold">vs</span>
+
+                                                    <div class="flex items-baseline gap-1">
+                                                        <span class="text-slate-100 font-bold">${atk.defender}</span>
+                                                        ${atk.defPower ? `<span class="text-[11px] font-mono text-purple-300 font-bold bg-purple-950/40 px-1 rounded">${atk.defPower}</span>` : ''}
+                                                    </div>
+
+                                                    ${atk.timeOnly ? `<span class="text-slate-400 text-[10px] ml-auto sm:ml-1 font-mono bg-slate-800 px-1.5 py-0.5 rounded">[${atk.timeOnly}]</span>` : ''}
+                                                </div>
+
+                                                <div class="flex items-center gap-2 self-end sm:self-auto">
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded ${atk.type === 'Héros' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}">${atk.type}</span>
+                                                    <span class="font-mono font-bold ${pointsColorClass} text-sm" title="Cumul slot : ${atk.cumulAfter}/20 pts">${atk.points} pts</span>
+                                                </div>
+                                            </div>
+                                        `;}).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
+                                <span>💤</span> Inactifs : ${ourClanName}
+                            </h3>
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${ourInactives.length} joueur(s)</span>
+                        </div>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            ${ourInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">Aucun inactif détecté (tous ont attaqué) !</div>` :
+                                ourInactives.map(p => `
+                                    <div class="flex justify-between items-center text-xs bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/60">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-200 font-semibold">${p.name}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-[11px] text-slate-400">${p.clan}</span>
+                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} jours (${p.lastLogin})</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="text-sm font-bold text-orange-400 flex items-center gap-2">
+                                <span>💤</span> Inactifs : ${enemyName}
+                            </h3>
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${enemyInactives.length} joueur(s)</span>
+                        </div>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            ${enemyInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">Aucun inactif détecté (tous ont attaqué) !</div>` :
+                                enemyInactives.map(p => `
+                                    <div class="flex justify-between items-center text-xs bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/60">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-200 font-semibold">${p.name}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-[11px] text-slate-400">${p.clan}</span>
+                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} jours (${p.lastLogin})</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
