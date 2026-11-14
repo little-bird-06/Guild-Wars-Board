@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.51</title>
+    <title>Guild Wars Board - v1.52</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
                     <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.51</span>
                 </h1>
-                <p class="text-xs text-slate-400">UI Dynamique : Vignettes locales optimisées & Mode Hors-Ligne</p>
+                <p class="text-xs text-slate-400">UI Dynamique : Vignettes Wiki & Mode Hors-Ligne</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -138,6 +138,38 @@
             { name: "Bastion of Ice", slots: [22, 23, 24], bonus: 60 },
             { name: "Citadel", slots: [25, 26, 27, 28, 29, 30], bonus: 120 }
         ];
+
+        // ==========================================
+        // TABLES DE MAPPING WIKI (Héros, Familiers, Titans)
+        // ==========================================
+        const heroesMap = {
+            "mar": "Martha",
+            "yas": "Yasmine",
+            "dan": "Dante",
+            "asta": "Astaroth",
+            "cel": "Celeste",
+            "neb": "Nebula",
+            "jhu": "Jhu",
+            "iris": "Iris",
+            "k'arkh": "K'arkh"
+        };
+
+        const petsMap = {
+            "mar": "Mara",
+            "axel": "Axel",
+            "fen": "Fenris",
+            "oliver": "Oliver",
+            "cane": "Cane",
+            "albus": "Albus"
+        };
+
+        const titansMap = {
+            "sig": "Sigurd",
+            "ang": "Angus",
+            "hyp": "Hyperion",
+            "nova": "Nova",
+            "syl": "Sylva"
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
@@ -367,32 +399,7 @@
             closeEnemyModal();
         }
 
-        // --- DESIGN DES VIGNETTES HORS-LIGNE & GESTION DES ICÔNES ---
-        function getHeroBadgeColor(name) {
-            let hash = 0;
-            for (let i = 0; i < name.length; i++) {
-                hash = name.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const colors = [
-                'from-blue-600 to-indigo-900 border-blue-400/60 shadow-blue-500/20',
-                'from-purple-600 to-indigo-950 border-purple-400/60 shadow-purple-500/20',
-                'from-emerald-600 to-teal-950 border-emerald-400/60 shadow-emerald-500/20',
-                'from-amber-600 to-orange-950 border-amber-400/60 shadow-amber-500/20',
-                'from-rose-600 to-red-950 border-rose-400/60 shadow-rose-500/20',
-                'from-cyan-600 to-blue-950 border-cyan-400/60 shadow-cyan-500/20',
-                'from-fuchsia-600 to-purple-950 border-fuchsia-400/60 shadow-fuchsia-500/20'
-            ];
-            return colors[Math.abs(hash) % colors.length];
-        }
-
-        // Dictionnaire optionnel pour associer des émojis thématiques ou symboles par héros connus si souhaité
-        const HERO_EMOJIS = {
-            'Astaroth': '🛡️', 'K\'arkh': '🐙', 'Jorgen': '⏳', 'Martha': '🍵', 'Celeste': '☯️',
-            'Oya': '🐅', 'Yasmine': '🗡️', 'Dante': '👁️', 'Iris': '🦋', 'Octavia': '✨',
-            'Lara': '🏹', 'Heidi': '🧪', 'Amira': '👑', 'Cleaver': '🥩', 'Peppy': '💣',
-            'Axel': '🐾', 'Cain': '🐾', 'Oliver': '🐾', 'Merlin': '🐾', 'Albus': '🐾', 'Biscuit': '🐾', 'Mara': '🐾'
-        };
-
+        // --- MOTEUR DE NETTOYAGE ET WIKI ---
         function parseTeamString(rawStr, isAttacker) {
             if (!rawStr || typeof rawStr !== 'string') {
                 return { pet: { name: '###', power: '' }, heroes: Array(5).fill({ name: '###', power: '' }) };
@@ -431,6 +438,23 @@
             };
         }
 
+        function getFullName(abbr, isPet) {
+            if (!abbr || abbr === '###') return '###';
+            let cleanKey = abbr.toLowerCase().trim();
+            if (isPet && petsMap[cleanKey]) return petsMap[cleanKey];
+            if (!isPet && heroesMap[cleanKey]) return heroesMap[cleanKey];
+            return abbr; // Fallback
+        }
+
+        function getWikiImageUrl(fullName) {
+            if (!fullName || fullName === '###') return '';
+            let formattedName = fullName.trim()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join('_');
+            return `https://static.wikia.nocookie.net/hero-wars/images/4/42/${formattedName}.png`;
+        }
+
         function renderTeamGrid(rawStr, isAttacker) {
             const teamData = parseTeamString(rawStr, isAttacker);
             
@@ -461,22 +485,22 @@
                             `;
                         }
 
-                        let initial = slot.name.charAt(0).toUpperCase();
-                        let customEmoji = HERO_EMOJIS[slot.name] || (slot.isPet ? '🦊' : initial);
-                        let bgGradient = slot.isPet ? 'from-amber-500 to-orange-700 border-amber-300 shadow-amber-500/20' : getHeroBadgeColor(slot.name);
+                        let fullName = getFullName(slot.name, slot.isPet);
+                        let imageUrl = getWikiImageUrl(fullName);
 
                         return `
-                            <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 text-center h-20 transition group" title="${escapeHtml(slot.name)} (${slot.power})">
+                            <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 text-center h-20 transition group" title="${escapeHtml(fullName)} (${slot.power})">
                                 <span class="text-[9px] uppercase tracking-tighter text-slate-400 font-mono">${slot.isPet ? 'Fam' : slot.label.replace('Héros ', 'H')}</span>
                                 
-                                <!-- Vignette Avatar Stylisée Haute Qualité (Idéale pour le local) -->
-                                <div class="relative w-9 h-9 rounded-full bg-gradient-to-br ${bgGradient} border-2 flex items-center justify-center shadow-md group-hover:scale-105 transition transform">
-                                    <span class="text-sm font-black text-white drop-shadow-md">${customEmoji}</span>
-                                    ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[9px] bg-slate-950 px-1 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
+                                <!-- Vignette Avatar Wiki -->
+                                <div class="relative w-9 h-9 rounded-full bg-slate-950 border-2 ${slot.isPet ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center overflow-hidden shadow-md group-hover:scale-105 transition transform">
+                                    <img src="${imageUrl}" alt="${escapeHtml(fullName)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <span class="text-[10px] font-bold text-white hidden">${fullName.charAt(0)}</span>
+                                    ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[9px] bg-slate-950 px-0.5 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
                                 </div>
 
                                 <div class="w-full truncate">
-                                    <div class="text-[10px] font-bold text-slate-200 truncate px-0.5">${escapeHtml(slot.name)}</div>
+                                    <div class="text-[10px] font-bold text-slate-200 truncate px-0.5">${escapeHtml(fullName)}</div>
                                     <div class="text-[9px] font-mono text-amber-400/90 leading-none">${slot.power ? formatPower(slot.power) : ''}</div>
                                 </div>
                             </div>
