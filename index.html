@@ -412,7 +412,7 @@
 
         function getLocalAvatarUrl(abbr, isPet = false, isTitan = false) {
             if (!abbr || abbr === '###') return '';
-            let cleanAbbr = abbr.toLowerCase().trim();
+            let cleanAbbr = abbr.trim(); // Garde la casse exacte du CSV
             let folder = isTitan ? 'titans/avatars' : (isPet ? 'heroes/pets' : 'heroes/avatars');
             return `${folder}/${cleanAbbr}.png`;
         }
