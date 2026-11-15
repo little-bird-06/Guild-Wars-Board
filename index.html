@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.53</title>
+    <title>Guild Wars Board - v1.60</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,9 +12,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.51</span>
+                    <span>⚔️</span> Guild Wars Baord <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.60</span>
                 </h1>
-                <p class="text-xs text-slate-400">Vignettes Wiki v0.2</p>
+                <p class="text-xs text-slate-400">Affichage des avatars (Héros-Familiers-Titans)</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -78,7 +78,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.51)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.60)</div>
                 <p class="text-sm">Importe tes fichiers pour afficher le tableau de bord des guerres.</p>
             </div>
         </div>
@@ -102,17 +102,14 @@
         </div>
     </div>
 
-    <!-- Modale de détail d'un combat -->
+    <!-- Modale de détail d'un combat (Refondue sur une seule ligne, sans titre) -->
     <div id="battleModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-                <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
-                    <span>⚔️</span> Détail de l'affrontement (Slot <span id="modalSlotNum">--</span>)
-                </h3>
-                <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-3 border-b border-slate-800 flex justify-end items-center bg-slate-950/50">
+                <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-3 py-1 rounded cursor-pointer bg-slate-800 hover:bg-slate-700 transition">Fermer ✕</button>
             </div>
-            <div id="battleModalContent" class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-                <!-- Rempli dynamiquement -->
+            <div id="battleModalContent" class="p-6 overflow-x-auto overflow-y-auto space-y-4 flex-1">
+                <!-- Rempli dynamiquement sur une ligne -->
             </div>
         </div>
     </div>
@@ -138,38 +135,6 @@
             { name: "Bastion of Ice", slots: [22, 23, 24], bonus: 60 },
             { name: "Citadel", slots: [25, 26, 27, 28, 29, 30], bonus: 120 }
         ];
-
-        // ==========================================
-        // TABLES DE MAPPING WIKI (Héros, Familiers, Titans)
-        // ==========================================
-        const heroesMap = {
-            "mar": "Martha",
-            "yas": "Yasmine",
-            "dan": "Dante",
-            "asta": "Astaroth",
-            "cel": "Celeste",
-            "neb": "Nebula",
-            "jhu": "Jhu",
-            "iris": "Iris",
-            "k'arkh": "K'arkh"
-        };
-
-        const petsMap = {
-            "mar": "Mara",
-            "axel": "Axel",
-            "fen": "Fenris",
-            "oliver": "Oliver",
-            "cane": "Cane",
-            "albus": "Albus"
-        };
-
-        const titansMap = {
-            "sig": "Sigurd",
-            "ang": "Angus",
-            "hyp": "Hyperion",
-            "nova": "Nova",
-            "syl": "Sylva"
-        };
 
         document.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
@@ -399,8 +364,10 @@
             closeEnemyModal();
         }
 
-        // --- MOTEUR DE NETTOYAGE ET WIKI ---
-        function parseTeamString(rawStr, isAttacker) {
+        // ==========================================
+        // GESTION DES AVATARS LOCAUX (FANKIT) & MODALE
+        // ==========================================
+        function parseTeamString(rawStr, isAttacker, isTitanTeam = false) {
             if (!rawStr || typeof rawStr !== 'string') {
                 return { pet: { name: '###', power: '' }, heroes: Array(5).fill({ name: '###', power: '' }) };
             }
@@ -409,13 +376,18 @@
             let petRaw = '###';
             let heroesRaw = [];
 
-            if (isAttacker) {
-                if (parts.length > 0) petRaw = parts[0];
-                heroesRaw = parts.slice(1, 6);
-            } else {
+            if (isTitanTeam) {
+                // Pour les titans, pas de familier, que 5 items maximum
                 heroesRaw = parts.slice(0, 5);
-                if (parts.length >= 6) {
-                    petRaw = parts[5];
+            } else {
+                if (isAttacker) {
+                    if (parts.length > 0) petRaw = parts[0];
+                    heroesRaw = parts.slice(1, 6);
+                } else {
+                    heroesRaw = parts.slice(0, 5);
+                    if (parts.length >= 6) {
+                        petRaw = parts[5];
+                    }
                 }
             }
 
@@ -438,75 +410,61 @@
             };
         }
 
-        function getFullName(abbr, isPet) {
-            if (!abbr || abbr === '###') return '###';
-            let cleanKey = abbr.toLowerCase().trim();
-            if (isPet && petsMap[cleanKey]) return petsMap[cleanKey];
-            if (!isPet && heroesMap[cleanKey]) return heroesMap[cleanKey];
-            return abbr; // Fallback
+        function getLocalAvatarUrl(abbr, isPet = false, isTitan = false) {
+            if (!abbr || abbr === '###') return '';
+            let cleanAbbr = abbr.toLowerCase().trim();
+            let folder = isTitan ? 'titans/avatars' : (isPet ? 'heroes/pets' : 'heroes/avatars');
+            return `${folder}/${cleanAbbr}.png`;
         }
 
-        function getWikiImageUrl(fullName) {
-            if (!fullName || fullName === '###') return '';
-            let formattedName = fullName.trim()
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                .join('_');
-            
-            // Note : Fandom utilise souvent un préfixe de hachage dans le chemin. 
-            // Si le lien direct par nom ne fonctionne pas, une alternative propre est 
-            // d'utiliser l'affichage du nom formaté ou une image de secours élégante.
-            return `https://hero-wars.fandom.com/wiki/Special:FilePath/${formattedName}.png`;
-        }
-        
-        function renderTeamGrid(rawStr, isAttacker) {
-            const teamData = parseTeamString(rawStr, isAttacker);
+        function renderTeamGrid(rawStr, isAttacker, isTitanTeam = false) {
+            const teamData = parseTeamString(rawStr, isAttacker, isTitanTeam);
             
             let slotsArray = [];
-            if (isAttacker) {
-                slotsArray = [
-                    { ...teamData.pet, isPet: true, label: 'Familier' },
-                    ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, label: `Héros ${i+1}` }))
-                ];
+            if (isTitanTeam) {
+                // Pour les titans : 5 titans exactement, sans familier
+                slotsArray = teamData.heroes.slice(0, 5).map((h, i) => ({ ...h, isPet: false, isTitan: true, label: `Titan ${i+1}` }));
             } else {
-                slotsArray = [
-                    ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, label: `Héros ${i+1}` })),
-                    { ...teamData.pet, isPet: true, label: 'Familier' }
-                ];
+                // Pour les héros : 1 familier + 5 héros
+                if (isAttacker) {
+                    slotsArray = [
+                        { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' },
+                        ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` }))
+                    ];
+                } else {
+                    // Défense héros : 5 héros puis le familier tout à droite
+                    slotsArray = [
+                        ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` })),
+                        { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' }
+                    ];
+                }
             }
 
             return `
-                <div class="grid grid-cols-6 gap-2">
+                <div class="flex items-center gap-2">
                     ${slotsArray.map(slot => {
                         let isEmpty = slot.name === '###';
                         if (isEmpty) {
                             return `
-                                <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-950 border border-slate-900 text-slate-700 text-center h-20 opacity-40">
-                                    <span class="text-[9px] font-mono">${slot.isPet ? 'FAM' : 'VIDE'}</span>
-                                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs">?</div>
+                                <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-slate-950 border border-slate-900 text-slate-700 text-center w-14 opacity-40">
+                                    <div class="w-[50px] h-[50px] rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs">?</div>
                                     <span class="text-[9px]">-</span>
                                 </div>
                             `;
                         }
 
-                        let fullName = getFullName(slot.name, slot.isPet);
-                        let imageUrl = getWikiImageUrl(fullName);
+                        let avatarUrl = getLocalAvatarUrl(slot.name, slot.isPet, isTitanTeam);
+                        let displayName = slot.name.toUpperCase();
 
                         return `
-                            <div class="flex flex-col items-center justify-between p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 text-center h-20 transition group" title="${escapeHtml(fullName)} (${slot.power})">
-                                <span class="text-[9px] uppercase tracking-tighter text-slate-400 font-mono">${slot.isPet ? 'Fam' : slot.label.replace('Héros ', 'H')}</span>
-                                
-                                <!-- Vignette Avatar Wiki -->
-                                <div class="relative w-9 h-9 rounded-full bg-slate-950 border-2 ${slot.isPet ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center overflow-hidden shadow-md group-hover:scale-105 transition transform">
-                                    <img src="${imageUrl}" alt="${escapeHtml(fullName)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                    <span class="text-[10px] font-bold text-white hidden">${fullName.charAt(0)}</span>
-                                    ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[9px] bg-slate-950 px-0.5 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
+                            <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-center" title="${escapeHtml(slot.name)}">
+                                <!-- Dimensions d'origine (160x160 pixels affichées en format avatar 50x50px) -->
+                                <div class="relative w-[50px] h-[50px] rounded-full bg-slate-950 border-2 ${slot.isPet ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center overflow-hidden shadow-md">
+                                    <img src="${avatarUrl}" width="160" height="160" alt="${escapeHtml(slot.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <span class="text-[10px] font-bold text-white hidden">${displayName.charAt(0)}</span>
+                                    ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[8px] bg-slate-950 px-0.5 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
                                 </div>
-
-                                <div class="w-full truncate">
-                                    <div class="text-[10px] font-bold text-slate-200 truncate px-0.5">${escapeHtml(fullName)}</div>
-                                    <div class="text-[9px] font-mono text-amber-400/90 leading-none">${slot.power ? formatPower(slot.power) : ''}</div>
-                                </div>
+                                <div class="text-[10px] font-mono text-amber-400/90 mt-1 h-3 leading-tight">${slot.power ? formatPower(slot.power) : ''}</div>
                             </div>
                         `;
                     }).join('')}
@@ -520,57 +478,51 @@
             const b = window._activeBattlesMap.get(battleId);
             if (!b) return;
 
-            document.getElementById('modalSlotNum').innerText = b.slot;
             const contentEl = document.getElementById('battleModalContent');
+            const isTitan = b.type === 'Titan';
+
+            // Extraction date (DD/MM) et heure (HH:MM)
+            let datePart = '--/--';
+            let timePart = b.timeOnly || '--:--';
+            if (b.dateTimeFull) {
+                let matchDate = b.dateTimeFull.match(/(\d{2})[-/](\d{2})/);
+                if (matchDate) datePart = `${matchDate[1]}/${matchDate[2]}`;
+            }
+
+            const pointsColorClass = b.isSuccessful ? 'text-emerald-400' : 'text-rose-500';
 
             contentEl.innerHTML = `
-                <div class="grid grid-cols-2 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <div>
-                        <span class="text-slate-400 block text-[10px] uppercase">Date & Heure</span>
-                        <span class="font-mono font-bold text-slate-200">${b.dateTimeFull}</span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 block text-[10px] uppercase">Type de Combat</span>
-                        <span class="font-semibold ${b.type === 'Héros' ? 'text-blue-400' : 'text-purple-400'}">${b.type}</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                            <span class="font-bold text-cyan-400 text-xs">⚔️ Attaquant : ${escapeHtml(b.attacker)}</span>
-                            ${b.attPower ? `<span class="font-mono text-cyan-300 bg-cyan-950/50 px-1.5 py-0.5 rounded text-[11px] font-bold">${b.attPower}</span>` : ''}
-                        </div>
-                        
-                        <div class="space-y-1">
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block">Équipe Attaque (Familier à gauche) :</span>
-                            ${renderTeamGrid(b.rawAttTeam, true)}
-                        </div>
+                <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800 gap-4 overflow-x-auto text-xs">
+                    <!-- 1. Tout à gauche : Date et heure en dessous -->
+                    <div class="flex flex-col items-center justify-center min-w-[70px] border-r border-slate-800 pr-4">
+                        <span class="font-mono font-bold text-slate-200 text-sm">${datePart}</span>
+                        <span class="font-mono text-slate-400 text-xs">${timePart}</span>
                     </div>
 
-                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                            <span class="font-bold text-orange-400 text-xs">🛡️ Défenseur (Slot ${b.slot}) : ${escapeHtml(b.defender)}</span>
-                            ${b.defPower ? `<span class="font-mono text-purple-300 bg-purple-950/50 px-1.5 py-0.5 rounded text-[11px] font-bold">${b.defPower}</span>` : ''}
+                    <!-- 2. Équipe Attaquant (Nom + Puissance équipe au-dessus) -->
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex justify-between items-center text-[11px] px-1">
+                            <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(b.attacker)}</span>
+                            <span class="font-mono text-cyan-300 font-bold">${b.attPower || ''}</span>
                         </div>
+                        ${renderTeamGrid(b.rawAttTeam, true, isTitan)}
+                    </div>
 
-                        <div class="space-y-1">
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block">Équipe Défense (Familier à droite) :</span>
-                            ${renderTeamGrid(b.rawDefTeam, false)}
+                    <span class="text-slate-600 font-bold text-sm">VS</span>
+
+                    <!-- 3. Équipe Défense (Nom + Puissance équipe au-dessus, familier à droite) -->
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex justify-between items-center text-[11px] px-1">
+                            <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(b.defender)}</span>
+                            <span class="font-mono text-purple-300 font-bold">${b.defPower || ''}</span>
                         </div>
+                        ${renderTeamGrid(b.rawDefTeam, false, isTitan)}
                     </div>
-                </div>
 
-                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                    <div>
-                        <span class="text-slate-400 block text-[10px] uppercase">Résultat & Points</span>
-                        <span class="font-bold text-sm ${b.isSuccessful ? 'text-emerald-400' : 'text-rose-400'}">
-                            ${b.points} pts comptabilisés (Cumul slot : ${b.cumulAfter}/20 pts)
-                        </span>
+                    <!-- 4. Tout à droite : Points (+ suivi du nombre, vert ou rouge) -->
+                    <div class="flex items-center justify-center min-w-[70px] border-l border-slate-800 pl-4">
+                        <span class="font-mono font-black text-xl ${pointsColorClass}">+${b.points}</span>
                     </div>
-                    <span class="text-xs px-2.5 py-1 rounded font-bold ${b.isSuccessful ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
-                        ${b.isSuccessful ? 'Succès / Validé' : 'Bloqué / Partiel'}
-                    </span>
                 </div>
             `;
 
@@ -1084,6 +1036,7 @@
                                             const attackerColor = appState.currentView === 'attacks' ? 'text-cyan-300' : 'text-orange-300';
                                             const powerBg = appState.currentView === 'attacks' ? 'bg-cyan-950/40 text-cyan-300' : 'bg-orange-950/40 text-orange-300';
                                             const pointsColorClass = atk.isSuccessful ? 'text-emerald-400' : 'text-rose-500 font-black';
+                                            const isTitanBattle = atk.type === 'Titan';
 
                                             return `
                                             <div onclick="openBattleModal('${atk.id}')" class="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs bg-slate-900 hover:bg-slate-850 hover:border-amber-500/40 px-3 py-2 rounded-lg border border-slate-800/80 gap-2 cursor-pointer transition group">
@@ -1106,8 +1059,8 @@
                                                 </div>
 
                                                 <div class="flex items-center gap-2 self-end sm:self-auto">
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded ${atk.type === 'Héros' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}">${atk.type}</span>
-                                                    <span class="font-mono font-bold ${pointsColorClass} text-sm" title="Cumul slot : ${atk.cumulAfter}/20 pts">${atk.points} pts</span>
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded ${!isTitanBattle ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}">${atk.type}</span>
+                                                    <span class="font-mono font-bold ${pointsColorClass} text-sm" title="Cumul slot : ${atk.cumulAfter}/20 pts">+${atk.points}</span>
                                                 </div>
                                             </div>
                                         `;}).join('')}
