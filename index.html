@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.60</title>
+    <title>Guild Wars Board - v1.61</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,9 +12,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Baord <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.60</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.61</span>
                 </h1>
-                <p class="text-xs text-slate-400">Affichage des avatars (Héros-Familiers-Titans)</p>
+                <p class="text-xs text-slate-400">Ajout des totems et fusions dans les combats de titans</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -78,7 +78,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.60)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.61)</div>
                 <p class="text-sm">Importe tes fichiers pour afficher le tableau de bord des guerres.</p>
             </div>
         </div>
@@ -102,9 +102,9 @@
         </div>
     </div>
 
-    <!-- Modale de détail d'un combat (Refondue sur une seule ligne, sans titre) -->
+    <!-- Modale de détail d'un combat -->
     <div id="battleModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-3 border-b border-slate-800 flex justify-end items-center bg-slate-950/50">
                 <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-3 py-1 rounded cursor-pointer bg-slate-800 hover:bg-slate-700 transition">Fermer ✕</button>
             </div>
@@ -365,7 +365,7 @@
         }
 
         // ==========================================
-        // GESTION DES AVATARS LOCAUX (FANKIT) & MODALE
+        // GESTION DES AVATARS & TOTEMS (FANKIT)
         // ==========================================
         function parseTeamString(rawStr, isAttacker, isTitanTeam = false) {
             if (!rawStr || typeof rawStr !== 'string') {
@@ -377,7 +377,6 @@
             let heroesRaw = [];
 
             if (isTitanTeam) {
-                // Pour les titans, pas de familier, que 5 items maximum
                 heroesRaw = parts.slice(0, 5);
             } else {
                 if (isAttacker) {
@@ -412,27 +411,94 @@
 
         function getLocalAvatarUrl(abbr, isPet = false, isTitan = false) {
             if (!abbr || abbr === '###') return '';
-            let cleanAbbr = abbr.trim(); // Garde la casse exacte du CSV
+            let cleanAbbr = abbr.trim();
             let folder = isTitan ? 'titans/avatars' : (isPet ? 'heroes/pets' : 'heroes/avatars');
             return `${folder}/${cleanAbbr}.png`;
         }
 
-        function renderTeamGrid(rawStr, isAttacker, isTitanTeam = false) {
+        function toRoman(num) {
+            let n = parseInt(num);
+            if (isNaN(n) || n <= 0) return num;
+            const lookup = {M:1000, CM:900, D:500, CD:400, C:100, XC:90, L:50, XL:40, X:10, IX:9, V:5, IV:4, I:1};
+            let roman = "";
+            for (let i in lookup ) {
+                while ( n >= lookup[i] ) {
+                    roman += i;
+                    n -= lookup[i];
+                }
+            }
+            return roman;
+        }
+
+        // Retourne la classe CSS de bordure selon l'élément du totem (W, F, E, L, D, X)
+        function getTotemBorderColor(totemName) {
+            if (!totemName) return 'border-purple-500/60';
+            let firstChar = totemName.trim().charAt(0).toUpperCase();
+            switch (firstChar) {
+                case 'W': return 'border-cyan-400';    // Eau = cyan
+                case 'F': return 'border-rose-500';    // Fire = rouge
+                case 'E': return 'border-emerald-400'; // Earth = vert
+                case 'L': return 'border-amber-300';    // Light = jaune / ambre
+                case 'D': return 'border-purple-500';  // Dark = violet
+                case 'X': return 'border-slate-150';   // Distorsion = blanc
+                default:  return 'border-purple-400';
+            }
+        }
+
+        function parseTotemsWithSkills(totemAbbrRaw, totemSkillsRaw) {
+            let abbrs = totemAbbrRaw ? totemAbbrRaw.trim().split(/\s+/).filter(s => s.length > 0) : [];
+            let skillTokens = totemSkillsRaw ? totemSkillsRaw.trim().split(/\s+/).filter(s => s.length > 0) : [];
+
+            let result = [];
+            for (let i = 0; i < abbrs.length; i++) {
+                let totemStr = abbrs[i]; 
+                let totemName = totemStr;
+                let totemPower = '';
+
+                let match = totemStr.match(/^(.+?)\((.+?)\)$/);
+                if (match) {
+                    totemName = match[1].trim();
+                    totemPower = match[2].trim();
+                }
+
+                let s1Token = skillTokens[i * 2] || '';
+                let s2Token = skillTokens[i * 2 + 1] || '';
+
+                function parseSkill(token) {
+                    if (!token) return null;
+                    let m = token.match(/^([a-zA-Z]{2})(\d+)$/);
+                    if (m) {
+                        return { code: m[1].toUpperCase(), level: m[2], levelRoman: toRoman(m[2]) };
+                    }
+                    return { code: token, level: '', levelRoman: '' };
+                }
+
+                result.push({
+                    rawString: totemStr, // Ex: "L6-130"
+                    name: totemName,
+                    power: totemPower,
+                    skill1: parseSkill(s1Token),
+                    skill2: parseSkill(s2Token),
+                    borderColor: getTotemBorderColor(totemName)
+                });
+            }
+            return result;
+        }
+
+        function renderTeamGrid(rawStr, isAttacker, isTitanTeam = false, totemAbbrRaw = '', totemSkillsRaw = '') {
             const teamData = parseTeamString(rawStr, isAttacker, isTitanTeam);
+            const totemsList = isTitanTeam ? parseTotemsWithSkills(totemAbbrRaw, totemSkillsRaw) : [];
             
             let slotsArray = [];
             if (isTitanTeam) {
-                // Pour les titans : 5 titans exactement, sans familier
                 slotsArray = teamData.heroes.slice(0, 5).map((h, i) => ({ ...h, isPet: false, isTitan: true, label: `Titan ${i+1}` }));
             } else {
-                // Pour les héros : 1 familier + 5 héros
                 if (isAttacker) {
                     slotsArray = [
                         { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' },
                         ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` }))
                     ];
                 } else {
-                    // Défense héros : 5 héros puis le familier tout à droite
                     slotsArray = [
                         ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` })),
                         { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' }
@@ -440,8 +506,45 @@
                 }
             }
 
+            function renderTotemsHTML() {
+                if (totemsList.length === 0) return '';
+                return totemsList.map(t => `
+                    <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-purple-950/40 border-2 ${t.borderColor} text-center w-[64px] shadow-md" title="Totem : ${escapeHtml(t.rawString)}">
+                        <!-- 2 Skills rapprochés avec masque circulaire 100x100 et niveau romain dessous -->
+                        <div class="flex flex-col gap-1 w-full items-center my-1">
+                            ${t.skill1 ? `
+                                <div class="flex flex-col items-center">
+                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Niv.${t.skill1.level}">
+                                        <img src="titans/fusion/${t.skill1.code}.png" width="100" height="100" alt="${t.skill1.code}" class="w-full h-full object-cover" onerror="this.style.display='none';">
+                                    </div>
+                                    <span class="text-[9px] font-bold text-amber-300 leading-none mt-0.5">${t.skill1.levelRoman}</span>
+                                </div>
+                            ` : ''}
+                            ${t.skill2 ? `
+                                <div class="flex flex-col items-center">
+                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Niv.${t.skill2.level}">
+                                        <img src="titans/fusion/${t.skill2.code}.png" width="100" height="100" alt="${t.skill2.code}" class="w-full h-full object-cover" onerror="this.style.display='none';">
+                                    </div>
+                                    <span class="text-[9px] font-bold text-amber-300 leading-none mt-0.5">${t.skill2.levelRoman}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Description complète du totem affichée clairement en bas (ex: L6-130) -->
+                        <div class="w-full bg-slate-950/80 rounded px-0.5 py-0.5 mt-1 border border-slate-800">
+                            <div class="text-[9px] font-bold text-purple-200 truncate leading-tight">${escapeHtml(t.rawString)}</div>
+                            <div class="text-[8px] font-mono text-purple-300 leading-tight">${t.power ? formatPower(t.power) : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const totemsMarkup = renderTotemsHTML();
+
             return `
                 <div class="flex items-center gap-2">
+                    ${isAttacker && isTitanTeam ? totemsMarkup : ''}
+
                     ${slotsArray.map(slot => {
                         let isEmpty = slot.name === '###';
                         if (isEmpty) {
@@ -458,7 +561,6 @@
 
                         return `
                             <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-center" title="${escapeHtml(slot.name)}">
-                                <!-- Dimensions d'origine (160x160 pixels affichées en format avatar 50x50px) -->
                                 <div class="relative w-[50px] h-[50px] rounded-full bg-slate-950 border-2 ${slot.isPet ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center overflow-hidden shadow-md">
                                     <img src="${avatarUrl}" width="160" height="160" alt="${escapeHtml(slot.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                     <span class="text-[10px] font-bold text-white hidden">${displayName.charAt(0)}</span>
@@ -468,6 +570,8 @@
                             </div>
                         `;
                     }).join('')}
+
+                    ${!isAttacker && isTitanTeam ? totemsMarkup : ''}
                 </div>
             `;
         }
@@ -481,7 +585,6 @@
             const contentEl = document.getElementById('battleModalContent');
             const isTitan = b.type === 'Titan';
 
-            // Extraction date (DD/MM) et heure (HH:MM)
             let datePart = '--/--';
             let timePart = b.timeOnly || '--:--';
             if (b.dateTimeFull) {
@@ -493,33 +596,29 @@
 
             contentEl.innerHTML = `
                 <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800 gap-4 overflow-x-auto text-xs">
-                    <!-- 1. Tout à gauche : Date et heure en dessous -->
                     <div class="flex flex-col items-center justify-center min-w-[70px] border-r border-slate-800 pr-4">
                         <span class="font-mono font-bold text-slate-200 text-sm">${datePart}</span>
                         <span class="font-mono text-slate-400 text-xs">${timePart}</span>
                     </div>
 
-                    <!-- 2. Équipe Attaquant (Nom + Puissance équipe au-dessus) -->
                     <div class="flex flex-col space-y-1">
                         <div class="flex justify-between items-center text-[11px] px-1">
                             <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(b.attacker)}</span>
                             <span class="font-mono text-cyan-300 font-bold">${b.attPower || ''}</span>
                         </div>
-                        ${renderTeamGrid(b.rawAttTeam, true, isTitan)}
+                        ${renderTeamGrid(b.rawAttTeam, true, isTitan, b.attTotem, b.attTotemSkills)}
                     </div>
 
                     <span class="text-slate-600 font-bold text-sm">VS</span>
 
-                    <!-- 3. Équipe Défense (Nom + Puissance équipe au-dessus, familier à droite) -->
                     <div class="flex flex-col space-y-1">
                         <div class="flex justify-between items-center text-[11px] px-1">
                             <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(b.defender)}</span>
                             <span class="font-mono text-purple-300 font-bold">${b.defPower || ''}</span>
                         </div>
-                        ${renderTeamGrid(b.rawDefTeam, false, isTitan)}
+                        ${renderTeamGrid(b.rawDefTeam, false, isTitan, b.defTotem, b.defTotemSkills)}
                     </div>
 
-                    <!-- 4. Tout à droite : Points (+ suivi du nombre, vert ou rouge) -->
                     <div class="flex items-center justify-center min-w-[70px] border-l border-slate-800 pl-4">
                         <span class="font-mono font-black text-xl ${pointsColorClass}">+${b.points}</span>
                     </div>
@@ -860,7 +959,11 @@
                                     timeOnly: extractTimeOnly(dateTime),
                                     dateTimeFull: dateTime,
                                     rawAttTeam: row['att team'] || row['attacker team'] || '',
-                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || ''
+                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || '',
+                                    attTotem: row['A flag/totem'] || row['att totem'] || '',
+                                    attTotemSkills: row['A flag desc/Totem skills'] || row['att totem skills'] || '',
+                                    defTotem: row['D flag/totem'] || row['def totem'] || '',
+                                    defTotemSkills: row['D flag desc/Totem skills'] || row['def totem skills'] || ''
                                 };
                                 window._activeBattlesMap.set(bId, bObj);
                                 rawAttacksList.push(bObj);
@@ -883,7 +986,11 @@
                                     timeOnly: extractTimeOnly(dateTime),
                                     dateTimeFull: dateTime,
                                     rawAttTeam: row['att team'] || row['attacker team'] || '',
-                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || ''
+                                    rawDefTeam: row['team'] || row['defender team'] || row['target team'] || '',
+                                    attTotem: row['A flag/totem'] || row['att totem'] || '',
+                                    attTotemSkills: row['A flag desc/Totem skills'] || row['att totem skills'] || '',
+                                    defTotem: row['D flag/totem'] || row['def totem'] || '',
+                                    defTotemSkills: row['D flag desc/Totem skills'] || row['def totem skills'] || ''
                                 };
                                 window._activeBattlesMap.set(bId, bObj);
                                 rawAttacksList.push(bObj);
