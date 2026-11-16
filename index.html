@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.61</title>
+    <title>Hero Wars : GvG Command Center - v1.61</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,9 +12,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.61</span>
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.61</span>
                 </h1>
-                <p class="text-xs text-slate-400">Ajout des totems et fusions dans les combats de titans</p>
+                <p class="text-xs text-slate-400">UI Dynamique : Puissance juxtaposée & Alignements corrigés</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -29,49 +29,54 @@
         </header>
 
         <!-- Import Section -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg md:col-span-2 flex flex-col justify-between">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- 1. JSON / Sauvegarde -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
                 <div>
-                    <h2 class="text-sm font-semibold text-amber-300 mb-2">1. Guerres ou Sauvegarde Globale (JSON)</h2>
+                    <h2 class="text-sm font-semibold text-amber-300 mb-2">1. Guerres (JSON)</h2>
                     <input type="file" id="jsonInput" accept=".json" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
                 </div>
                 
-                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 mt-2">
-                    <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1">
-                        <span>◀</span> Précédente
-                    </button>
-                    
+                <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between gap-2 mt-2">
+                    <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2 py-1.5 rounded text-xs font-bold transition cursor-pointer">◀</button>
                     <div class="text-center flex-1 flex items-center justify-center gap-2">
-                        <span id="warDateText" class="text-xl font-extrabold text-amber-400 tracking-wider">--/--</span>
-                        <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-base ml-2" title="Supprimer uniquement cette guerre">🗑️</button>
+                        <span id="warDateText" class="text-lg font-extrabold text-amber-400 tracking-wider">--/--</span>
+                        <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
                     </div>
+                    <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2 py-1.5 rounded text-xs font-bold transition cursor-pointer">▶</button>
+                </div>
+            </div>
 
-                    <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1">
-                        Suivante <span>▶</span>
+            <!-- 2. Import Fichiers CSV -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-blue-300 mb-2">2. Importer Fichiers CSV</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block mb-1">Héros</span>
+                            <input type="file" id="heroInput" accept=".csv" class="block w-full text-[10px] text-slate-400 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white cursor-pointer">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block mb-1">Titans</span>
+                            <input type="file" id="titanInput" accept=".csv" class="block w-full text-[10px] text-slate-400 file:py-1 file:px-2 file:rounded file:border-0 file:bg-purple-600 file:text-white cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-[11px] font-mono text-slate-400">
+                    <span id="heroMeta">0 héros</span>
+                    <span id="titanMeta">0 titans</span>
+                </div>
+            </div>
+
+            <!-- 3. Presse-papier Intelligent -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-emerald-300 mb-2">3. Import Rapide Presse-papier</h2>
+                    <button onclick="importSmartClipboard()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-md">
+                        <span>📋</span> Coller le CSV (Auto-détection)
                     </button>
                 </div>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2 shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-blue-300 mb-2">2. Database Batailles Héros (CSV)</h2>
-                    <input type="file" id="heroInput" accept=".csv" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
-                </div>
-                <div>
-                    <div id="heroMeta" class="text-[11px] font-mono text-slate-400 font-semibold">0 batailles en DB</div>
-                    <div id="heroImportLog" class="text-[10px] font-mono text-emerald-400 h-4"></div>
-                </div>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2 shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-purple-300 mb-2">3. Database Batailles Titans (CSV)</h2>
-                    <input type="file" id="titanInput" accept=".csv" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer">
-                </div>
-                <div>
-                    <div id="titanMeta" class="text-[11px] font-mono text-slate-400 font-semibold">0 batailles en DB</div>
-                    <div id="titanImportLog" class="text-[10px] font-mono text-emerald-400 h-4"></div>
-                </div>
+                <div id="smartImportLog" class="text-[10px] font-mono text-emerald-400 text-center h-4">Clique pour coller</div>
             </div>
         </div>
 
@@ -79,7 +84,7 @@
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
                 <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.61)</div>
-                <p class="text-sm">Importe tes fichiers pour afficher le tableau de bord des guerres.</p>
+                <p class="text-sm">Importe tes fichiers ou utilise le bouton pour coller tes données.</p>
             </div>
         </div>
     </div>
@@ -144,8 +149,8 @@
             const titanInput = document.getElementById('titanInput');
 
             if (jsonInput) jsonInput.addEventListener('change', handleJSONImport);
-            if (heroInput) heroInput.addEventListener('change', (e) => handleCSV(e, 'hero'));
-            if (titanInput) titanInput.addEventListener('change', (e) => handleCSV(e, 'titan'));
+            if (heroInput) heroInput.addEventListener('change', (e) => handleCSVFile(e, 'hero'));
+            if (titanInput) titanInput.addEventListener('change', (e) => handleCSVFile(e, 'titan'));
 
             updateNavigationUI();
             updateDatabaseUI();
@@ -224,8 +229,7 @@
                 document.getElementById('jsonInput').value = '';
                 document.getElementById('heroInput').value = '';
                 document.getElementById('titanInput').value = '';
-                document.getElementById('heroImportLog').innerText = '';
-                document.getElementById('titanImportLog').innerText = '';
+                document.getElementById('smartImportLog').innerText = 'Base purgée';
                 updateNavigationUI();
                 updateDatabaseUI();
                 renderDashboard();
@@ -365,7 +369,121 @@
         }
 
         // ==========================================
-        // GESTION DES AVATARS & TOTEMS (FANKIT)
+        // AUTO-DÉTECTION PAR CONTENU (PETS)
+        // ==========================================
+        async function importSmartClipboard() {
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+                alert("Votre navigateur ne permet pas l'accès automatique au presse-papier.");
+                return;
+            }
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text || text.trim().length === 0) {
+                    alert("Le presse-papier est vide.");
+                    return;
+                }
+                detectAndProcessCSV(text);
+            } catch (err) {
+                alert("Impossible de lire le presse-papier : " + err.message);
+            }
+        }
+
+        function handleCSVFile(e, forcedType) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                if (forcedType) {
+                    processCSVText(evt.target.result, forcedType);
+                } else {
+                    detectAndProcessCSV(evt.target.result);
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function detectAndProcessCSV(csvText) {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const rows = results.data;
+                    let targetType = 'titan';
+
+                    const hasPetsData = rows.some(row => {
+                        const attPet = row['attacker pet'] || row['att pet'] || row['attacker pets'] || '';
+                        const defPet = row['defender pet'] || row['def pet'] || row['defender pets'] || '';
+                        return String(attPet).trim().length > 0 || String(defPet).trim().length > 0;
+                    });
+
+                    if (hasPetsData) {
+                        targetType = 'hero';
+                    }
+
+                    processCSVTextParsed(rows, targetType);
+                },
+                error: function(err) {
+                    alert("Erreur de détection CSV : " + err.message);
+                }
+            });
+        }
+
+        function processCSVText(csvText, type) {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processCSVTextParsed(results.data, type);
+                },
+                error: function(err) { alert("Erreur de parsing CSV : " + err.message); }
+            });
+        }
+
+        function processCSVTextParsed(incomingRows, type) {
+            const previousCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
+            
+            if (type === 'hero') {
+                appState.heroes = mergeUniqueRows(appState.heroes, incomingRows);
+            } else {
+                appState.titans = mergeUniqueRows(appState.titans, incomingRows);
+            }
+
+            const newCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
+            const addedCount = newCount - previousCount;
+            
+            const logEl = document.getElementById('smartImportLog');
+            if (logEl) {
+                logEl.innerText = `✅ +${addedCount} batailles de ${type.toUpperCase()} (${incomingRows.length} lignes)`;
+            }
+
+            saveToLocalStorage();
+            updateDatabaseUI();
+            if (appState.activeKey) renderDashboard();
+        }
+
+        function mergeUniqueRows(existingRows, newRows) {
+            const uniqueMap = new Map();
+            existingRows.forEach(row => {
+                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+                uniqueMap.set(key, row);
+            });
+            newRows.forEach(row => {
+                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+                uniqueMap.set(key, row);
+            });
+            return Array.from(uniqueMap.values());
+        }
+
+        function updateDatabaseUI() {
+            const hMeta = document.getElementById('heroMeta');
+            const tMeta = document.getElementById('titanMeta');
+            if (hMeta) hMeta.innerText = `${appState.heroes.length} héros`;
+            if (tMeta) tMeta.innerText = `${appState.titans.length} titans`;
+        }
+
+        // ==========================================
+        // GESTION DES AVATARS & FAMILIERS
         // ==========================================
         function parseTeamString(rawStr, isAttacker, isTitanTeam = false) {
             if (!rawStr || typeof rawStr !== 'string') {
@@ -409,6 +527,22 @@
             };
         }
 
+        function parseIndividualPets(petsRawStr) {
+            if (!petsRawStr || typeof petsRawStr !== 'string') {
+                return Array(5).fill({ name: '###' });
+            }
+            let parts = petsRawStr.trim().split(/\s+/).filter(s => s.length > 0);
+            while (parts.length < 5) {
+                parts.push('###');
+            }
+            return parts.slice(0, 5).map(itemStr => {
+                if (!itemStr || itemStr === '###') return { name: '###' };
+                let namePart = itemStr.split('(')[0].trim();
+                let shortName = namePart.slice(0, 3);
+                return { name: shortName, raw: itemStr };
+            });
+        }
+
         function getLocalAvatarUrl(abbr, isPet = false, isTitan = false) {
             if (!abbr || abbr === '###') return '';
             let cleanAbbr = abbr.trim();
@@ -430,17 +564,16 @@
             return roman;
         }
 
-        // Retourne la classe CSS de bordure selon l'élément du totem (W, F, E, L, D, X)
         function getTotemBorderColor(totemName) {
             if (!totemName) return 'border-purple-500/60';
             let firstChar = totemName.trim().charAt(0).toUpperCase();
             switch (firstChar) {
-                case 'W': return 'border-cyan-400';    // Eau = cyan
-                case 'F': return 'border-rose-500';    // Fire = rouge
-                case 'E': return 'border-emerald-400'; // Earth = vert
-                case 'L': return 'border-amber-300';    // Light = jaune / ambre
-                case 'D': return 'border-purple-500';  // Dark = violet
-                case 'X': return 'border-slate-150';   // Distorsion = blanc
+                case 'W': return 'border-cyan-400';
+                case 'F': return 'border-rose-500';
+                case 'E': return 'border-emerald-400';
+                case 'L': return 'border-amber-300';
+                case 'D': return 'border-purple-500';
+                case 'X': return 'border-slate-150';
                 default:  return 'border-purple-400';
             }
         }
@@ -474,7 +607,7 @@
                 }
 
                 result.push({
-                    rawString: totemStr, // Ex: "L6-130"
+                    rawString: totemStr,
                     name: totemName,
                     power: totemPower,
                     skill1: parseSkill(s1Token),
@@ -485,32 +618,39 @@
             return result;
         }
 
-        function renderTeamGrid(rawStr, isAttacker, isTitanTeam = false, totemAbbrRaw = '', totemSkillsRaw = '') {
+        function renderTeamGrid(rawStr, isAttacker, isTitanTeam = false, totemAbbrRaw = '', totemSkillsRaw = '', individualPetsRaw = '') {
             const teamData = parseTeamString(rawStr, isAttacker, isTitanTeam);
+            const indPets = isTitanTeam ? [] : parseIndividualPets(individualPetsRaw);
             const totemsList = isTitanTeam ? parseTotemsWithSkills(totemAbbrRaw, totemSkillsRaw) : [];
             
             let slotsArray = [];
             if (isTitanTeam) {
                 slotsArray = teamData.heroes.slice(0, 5).map((h, i) => ({ ...h, isPet: false, isTitan: true, label: `Titan ${i+1}` }));
             } else {
+                let mappedHeroes = teamData.heroes.map((h, i) => {
+                    let pInfo = indPets[i] || { name: '###' };
+                    return {
+                        ...h,
+                        indPet: pInfo.name !== '###' ? pInfo.name : null,
+                        isPet: false,
+                        isTitan: false,
+                        label: `Héros ${i+1}`
+                    };
+                });
+
+                let petSlot = { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' };
                 if (isAttacker) {
-                    slotsArray = [
-                        { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' },
-                        ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` }))
-                    ];
+                    slotsArray = [petSlot, ...mappedHeroes];
                 } else {
-                    slotsArray = [
-                        ...teamData.heroes.map((h, i) => ({ ...h, isPet: false, isTitan: false, label: `Héros ${i+1}` })),
-                        { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' }
-                    ];
+                    slotsArray = [...mappedHeroes, petSlot];
                 }
             }
 
             function renderTotemsHTML() {
                 if (totemsList.length === 0) return '';
+                // Pas de marge haute supplémentaire pour les titans
                 return totemsList.map(t => `
                     <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-purple-950/40 border-2 ${t.borderColor} text-center w-[64px] shadow-md" title="Totem : ${escapeHtml(t.rawString)}">
-                        <!-- 2 Skills rapprochés avec masque circulaire 100x100 et niveau romain dessous -->
                         <div class="flex flex-col gap-1 w-full items-center my-1">
                             ${t.skill1 ? `
                                 <div class="flex flex-col items-center">
@@ -530,7 +670,6 @@
                             ` : ''}
                         </div>
 
-                        <!-- Description complète du totem affichée clairement en bas (ex: L6-130) -->
                         <div class="w-full bg-slate-950/80 rounded px-0.5 py-0.5 mt-1 border border-slate-800">
                             <div class="text-[9px] font-bold text-purple-200 truncate leading-tight">${escapeHtml(t.rawString)}</div>
                             <div class="text-[8px] font-mono text-purple-300 leading-tight">${t.power ? formatPower(t.power) : ''}</div>
@@ -540,9 +679,12 @@
             }
 
             const totemsMarkup = renderTotemsHTML();
+            // Marge haute uniquement pour les héros pour laisser de la place aux familiers individuels
+            // const containerClass = !isTitanTeam ? "flex items-center gap-2 mt-4" : "flex items-center gap-2";
+            const containerClass = !isTitanTeam ? "flex items-end gap-2 pt-4" : "flex items-center gap-2";
 
             return `
-                <div class="flex items-center gap-2">
+                <div class="${containerClass}">
                     ${isAttacker && isTitanTeam ? totemsMarkup : ''}
 
                     ${slotsArray.map(slot => {
@@ -558,14 +700,22 @@
 
                         let avatarUrl = getLocalAvatarUrl(slot.name, slot.isPet, isTitanTeam);
                         let displayName = slot.name.toUpperCase();
+                        let petAvatarUrl = slot.indPet ? getLocalAvatarUrl(slot.indPet, true, false) : '';
 
                         return `
-                            <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-center" title="${escapeHtml(slot.name)}">
+                            <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-center relative" title="${escapeHtml(slot.name)}">
                                 <div class="relative w-[50px] h-[50px] rounded-full bg-slate-950 border-2 ${slot.isPet ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center overflow-hidden shadow-md">
                                     <img src="${avatarUrl}" width="160" height="160" alt="${escapeHtml(slot.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                     <span class="text-[10px] font-bold text-white hidden">${displayName.charAt(0)}</span>
                                     ${slot.isPet ? '<span class="absolute -bottom-1 -right-1 text-[8px] bg-slate-950 px-0.5 rounded-full border border-amber-500 z-10">🐾</span>' : ''}
                                 </div>
+
+                                ${slot.indPet ? `
+                                    <div class="absolute -top-3 -right-3 w-[30px] h-[30px] rounded-full bg-slate-950 border-2 border-amber-400 overflow-hidden shadow-xl z-30" title="Familier : ${slot.indPet}">
+                                        <img src="${petAvatarUrl}" width="80" height="80" alt="${slot.indPet}" class="w-full h-full object-cover" onerror="this.style.display='none';">
+                                    </div>
+                                ` : ''}
+
                                 <div class="text-[10px] font-mono text-amber-400/90 mt-1 h-3 leading-tight">${slot.power ? formatPower(slot.power) : ''}</div>
                             </div>
                         `;
@@ -601,22 +751,24 @@
                         <span class="font-mono text-slate-400 text-xs">${timePart}</span>
                     </div>
 
+                    <!-- Attaquant & Sa Puissance juxtaposée -->
                     <div class="flex flex-col space-y-1">
-                        <div class="flex justify-between items-center text-[11px] px-1">
+                        <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(b.attacker)}</span>
-                            <span class="font-mono text-cyan-300 font-bold">${b.attPower || ''}</span>
+                            <span class="font-mono text-cyan-300 font-bold bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded shadow-sm">${b.attPower || '0'}</span>
                         </div>
-                        ${renderTeamGrid(b.rawAttTeam, true, isTitan, b.attTotem, b.attTotemSkills)}
+                        ${renderTeamGrid(b.rawAttTeam, true, isTitan, b.attTotem, b.attTotemSkills, b.attIndPets)}
                     </div>
 
                     <span class="text-slate-600 font-bold text-sm">VS</span>
 
+                    <!-- Défenseur & Sa Puissance juxtaposée -->
                     <div class="flex flex-col space-y-1">
-                        <div class="flex justify-between items-center text-[11px] px-1">
+                        <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(b.defender)}</span>
-                            <span class="font-mono text-purple-300 font-bold">${b.defPower || ''}</span>
+                            <span class="font-mono text-purple-300 font-bold bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded shadow-sm">${b.defPower || '0'}</span>
                         </div>
-                        ${renderTeamGrid(b.rawDefTeam, false, isTitan, b.defTotem, b.defTotemSkills)}
+                        ${renderTeamGrid(b.rawDefTeam, false, isTitan, b.defTotem, b.defTotemSkills, b.defIndPets)}
                     </div>
 
                     <div class="flex items-center justify-center min-w-[70px] border-l border-slate-800 pl-4">
@@ -735,51 +887,11 @@
             dateTextEl.innerText = warDateObj.fullDate;
         }
 
-        function handleCSV(e, type) {
-            const file = e.target.files[0];
-            if (!file) return;
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const incomingRows = results.data;
-                    const previousCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
-                    if (type === 'hero') {
-                        appState.heroes = mergeUniqueRows(appState.heroes, incomingRows);
-                    } else {
-                        appState.titans = mergeUniqueRows(appState.titans, incomingRows);
-                    }
-                    const newCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
-                    const addedCount = newCount - previousCount;
-                    const logEl = document.getElementById(type === 'hero' ? 'heroImportLog' : 'titanImportLog');
-                    if (logEl) logEl.innerText = `+${addedCount} batailles (${incomingRows.length} analysées)`;
-                    saveToLocalStorage();
-                    updateDatabaseUI();
-                    if (appState.activeKey) renderDashboard();
-                    e.target.value = '';
-                },
-                error: function(err) { alert("Erreur CSV : " + err.message); }
-            });
-        }
-
-        function mergeUniqueRows(existingRows, newRows) {
-            const uniqueMap = new Map();
-            existingRows.forEach(row => {
-                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
-                uniqueMap.set(key, row);
-            });
-            newRows.forEach(row => {
-                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
-                uniqueMap.set(key, row);
-            });
-            return Array.from(uniqueMap.values());
-        }
-
         function updateDatabaseUI() {
             const hMeta = document.getElementById('heroMeta');
             const tMeta = document.getElementById('titanMeta');
-            if (hMeta) hMeta.innerText = `${appState.heroes.length} batailles en DB`;
-            if (tMeta) tMeta.innerText = `${appState.titans.length} batailles en DB`;
+            if (hMeta) hMeta.innerText = `${appState.heroes.length} héros`;
+            if (tMeta) tMeta.innerText = `${appState.titans.length} titans`;
         }
 
         function formatPower(val) {
@@ -960,6 +1072,8 @@
                                     dateTimeFull: dateTime,
                                     rawAttTeam: row['att team'] || row['attacker team'] || '',
                                     rawDefTeam: row['team'] || row['defender team'] || row['target team'] || '',
+                                    attIndPets: row['attacker pet'] || row['att pet'] || row['attacker pets'] || '',
+                                    defIndPets: row['defender pet'] || row['def pet'] || row['defender pets'] || '',
                                     attTotem: row['A flag/totem'] || row['att totem'] || '',
                                     attTotemSkills: row['A flag desc/Totem skills'] || row['att totem skills'] || '',
                                     defTotem: row['D flag/totem'] || row['def totem'] || '',
@@ -987,6 +1101,8 @@
                                     dateTimeFull: dateTime,
                                     rawAttTeam: row['att team'] || row['attacker team'] || '',
                                     rawDefTeam: row['team'] || row['defender team'] || row['target team'] || '',
+                                    attIndPets: row['attacker pet'] || row['att pet'] || row['attacker pets'] || '',
+                                    defIndPets: row['defender pet'] || row['def pet'] || row['defender pets'] || '',
                                     attTotem: row['A flag/totem'] || row['att totem'] || '',
                                     attTotemSkills: row['A flag desc/Totem skills'] || row['att totem skills'] || '',
                                     defTotem: row['D flag/totem'] || row['def totem'] || '',
