@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.61</title>
+    <title>Hero Wars : GvG Command Center - v1.64</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,9 +12,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.61</span>
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.64</span>
                 </h1>
-                <p class="text-xs text-slate-400">UI Dynamique : Puissance juxtaposée & Alignements corrigés</p>
+                <p class="text-xs text-slate-400">UI Dynamique : Historique interactif et synchro des équipes</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -83,7 +83,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.61)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.64)</div>
                 <p class="text-sm">Importe tes fichiers ou utilise le bouton pour coller tes données.</p>
             </div>
         </div>
@@ -648,7 +648,6 @@
 
             function renderTotemsHTML() {
                 if (totemsList.length === 0) return '';
-                // Pas de marge haute supplémentaire pour les titans
                 return totemsList.map(t => `
                     <div class="flex flex-col items-center justify-between p-1 rounded-xl bg-purple-950/40 border-2 ${t.borderColor} text-center w-[64px] shadow-md" title="Totem : ${escapeHtml(t.rawString)}">
                         <div class="flex flex-col gap-1 w-full items-center my-1">
@@ -679,8 +678,6 @@
             }
 
             const totemsMarkup = renderTotemsHTML();
-            // Marge haute uniquement pour les héros pour laisser de la place aux familiers individuels
-            // const containerClass = !isTitanTeam ? "flex items-center gap-2 mt-4" : "flex items-center gap-2";
             const containerClass = !isTitanTeam ? "flex items-end gap-2 pt-4" : "flex items-center gap-2";
 
             return `
@@ -726,12 +723,61 @@
             `;
         }
 
+        // ==========================================
+        // RECHERCHE & CONSTRUCTION DE L'HISTORIQUE
+        // ==========================================
+        function getDefenderAttacksHistory(defId, isTitan) {
+            if (!defId) return [];
+            const rows = isTitan ? appState.titans : appState.heroes;
+            if (!rows || rows.length === 0) return [];
+
+            let history = [];
+            rows.forEach(row => {
+                let rowDefId = String(row['defender id'] || '');
+                if (rowDefId === String(defId)) {
+                    let dateTime = row['date time'] || '';
+                    let datePart = '--/--';
+                    let matchDate = dateTime.match(/(\d{2})[-/](\d{2})/);
+                    if (matchDate) {
+                        datePart = `${matchDate[1]}/${matchDate[2]}`;
+                    }
+
+                    let attName = row['att name'] || row['attacker name'] || 'Inconnu';
+                    let pts = row['points'] || '0';
+
+                    history.push({
+                        date: datePart,
+                        attackerName: attName,
+                        points: pts,
+                        dateTimeFull: dateTime,
+                        rawRow: row
+                    });
+                }
+            });
+
+            // Tri chronologique strict : du plus récent au plus ancien (en prenant compte l'heure complète)
+            history.sort((a, b) => b.dateTimeFull.localeCompare(a.dateTimeFull));
+            return history;
+        }
+
         window._activeBattlesMap = new Map();
+        window._currentBattleModalContext = null;
 
         function openBattleModal(battleId) {
             const b = window._activeBattlesMap.get(battleId);
             if (!b) return;
 
+            window._currentBattleModalContext = {
+                battleId: battleId,
+                isTitan: b.type === 'Titan',
+                defId: b.defId
+            };
+
+            renderBattleModalContent(b);
+            document.getElementById('battleModal').classList.remove('hidden');
+        }
+
+        function renderBattleModalContent(b) {
             const contentEl = document.getElementById('battleModalContent');
             const isTitan = b.type === 'Titan';
 
@@ -744,6 +790,29 @@
 
             const pointsColorClass = b.isSuccessful ? 'text-emerald-400' : 'text-rose-500';
 
+            // Historique des attaques subies par ce défenseur
+            const defenderAttacksHistory = getDefenderAttacksHistory(b.defId, isTitan);
+
+            function renderHistorySelect(historyList) {
+                if (!historyList || historyList.length === 0) {
+                    return `<select class="w-full text-[11px] bg-slate-900 text-slate-400 border border-slate-800 rounded px-2 py-1 outline-none mt-2 cursor-not-allowed" disabled>
+                        <option>Aucun historique d'attaque</option>
+                    </select>`;
+                }
+
+                let optionsHTML = historyList.map((h, idx) => {
+                    let isSelected = (h.dateTimeFull === b.dateTimeFull && h.attackerName === b.attacker && String(h.points) === String(b.points)) ? 'selected' : '';
+                    return `<option value="${idx}" ${isSelected}>${h.date} - ${h.attackerName} (+${h.points} pts)</option>`;
+                }).join('');
+
+                return `
+                    <select onchange="onSelectHistoryBattle(this.value)" class="w-full text-[11px] bg-slate-900 text-slate-200 border border-slate-800 rounded px-2 py-1 outline-none mt-2 focus:border-amber-500/50 cursor-pointer">
+                        <option value="" disabled>Historique (${historyList.length} attaque(s))...</option>
+                        ${optionsHTML}
+                    </select>
+                `;
+            }
+
             contentEl.innerHTML = `
                 <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800 gap-4 overflow-x-auto text-xs">
                     <div class="flex flex-col items-center justify-center min-w-[70px] border-r border-slate-800 pr-4">
@@ -751,19 +820,20 @@
                         <span class="font-mono text-slate-400 text-xs">${timePart}</span>
                     </div>
 
-                    <!-- Attaquant & Sa Puissance juxtaposée -->
-                    <div class="flex flex-col space-y-1">
+                    <!-- Attaquant (avec historique interactif sous sa composition) -->
+                    <div class="flex flex-col space-y-1 flex-1">
                         <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(b.attacker)}</span>
                             <span class="font-mono text-cyan-300 font-bold bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded shadow-sm">${b.attPower || '0'}</span>
                         </div>
                         ${renderTeamGrid(b.rawAttTeam, true, isTitan, b.attTotem, b.attTotemSkills, b.attIndPets)}
+                        ${renderHistorySelect(defenderAttacksHistory)}
                     </div>
 
-                    <span class="text-slate-600 font-bold text-sm">VS</span>
+                    <span class="text-slate-600 font-bold text-sm px-2">VS</span>
 
-                    <!-- Défenseur & Sa Puissance juxtaposée -->
-                    <div class="flex flex-col space-y-1">
+                    <!-- Défenseur -->
+                    <div class="flex flex-col space-y-1 flex-1">
                         <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(b.defender)}</span>
                             <span class="font-mono text-purple-300 font-bold bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded shadow-sm">${b.defPower || '0'}</span>
@@ -776,12 +846,51 @@
                     </div>
                 </div>
             `;
+        }
 
-            document.getElementById('battleModal').classList.remove('hidden');
+        function onSelectHistoryBattle(indexStr) {
+            let idx = parseInt(indexStr);
+            if (isNaN(idx) || !window._currentBattleModalContext) return;
+
+            const ctx = window._currentBattleModalContext;
+            const historyList = getDefenderAttacksHistory(ctx.defId, ctx.isTitan);
+            if (!historyList[idx]) return;
+
+            const selectedRow = historyList[idx].rawRow;
+            const dateTime = selectedRow['date time'] || '';
+            const pts = parseInt(selectedRow['points'] || 0);
+
+            // Reconstitution dynamique de l'objet combat pour la modale
+            let updatedBattleObj = {
+                id: ctx.battleId,
+                attacker: selectedRow['att name'] || selectedRow['attacker id'] || 'Inconnu',
+                defender: selectedRow['def name'] || selectedRow['defender id'] || 'Inconnu',
+                attId: String(selectedRow['attacker id'] || ''),
+                defId: String(selectedRow['defender id'] || ''),
+                attPower: formatPower(selectedRow['att power'] || selectedRow['attacker power'] || selectedRow['power'] || 0),
+                defPower: formatPower(selectedRow['def power'] || selectedRow['defender power'] || selectedRow['target power'] || 0),
+                slot: 0, 
+                points: isNaN(pts) ? 0 : pts,
+                type: ctx.isTitan ? 'Titan' : 'Héros',
+                timeOnly: extractTimeOnly(dateTime),
+                dateTimeFull: dateTime,
+                rawAttTeam: selectedRow['att team'] || selectedRow['attacker team'] || '',
+                rawDefTeam: selectedRow['team'] || selectedRow['defender team'] || selectedRow['target team'] || '',
+                attIndPets: selectedRow['attacker pet'] || selectedRow['att pet'] || selectedRow['attacker pets'] || '',
+                defIndPets: selectedRow['defender pet'] || selectedRow['def pet'] || selectedRow['defender pets'] || '',
+                attTotem: selectedRow['A flag/totem'] || selectedRow['att totem'] || '',
+                attTotemSkills: selectedRow['A flag desc/Totem skills'] || selectedRow['att totem skills'] || '',
+                defTotem: selectedRow['D flag/totem'] || selectedRow['def totem'] || '',
+                defTotemSkills: selectedRow['D flag desc/Totem skills'] || selectedRow['def totem skills'] || '',
+                isSuccessful: pts >= 20 || pts > 0
+            };
+
+            renderBattleModalContent(updatedBattleObj);
         }
 
         function closeBattleModal() {
             document.getElementById('battleModal').classList.add('hidden');
+            window._currentBattleModalContext = null;
         }
 
         function escapeHtml(str) {
