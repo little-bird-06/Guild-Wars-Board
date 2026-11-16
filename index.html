@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.69</title>
+    <title>Hero Wars : GvG Command Center - v1.71</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,13 +12,12 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.69</span>
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.71</span>
                 </h1>
-                <p class="text-xs text-slate-400">UI Compacte : Organisation logique des imports & backups</p>
+                <p class="text-xs text-slate-400">Calcul des points et du Bridge pour les slots sans défense</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
-                <!-- Bouton d'accès au mode Admin (Cadenas) -->
                 <button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Panneau d'administration">
                     <span>🔒</span> Admin
                 </button>
@@ -38,7 +37,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.69)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.71)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -59,7 +58,6 @@
                 <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <!-- Ligne 1 : Imports exclusifs -->
                     <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">⚔️</div>
                         <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Import Guerre (JSON)</span>
@@ -75,7 +73,6 @@
                         <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Restore Données</span>
                     </button>
 
-                    <!-- Ligne 2 : Sauvegardes & Danger -->
                     <button onclick="exportGlobalBackup()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">📦</div>
                         <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Backup Données</span>
@@ -803,7 +800,7 @@
 
         function openBattleModal(battleId) {
             const b = window._activeBattlesMap.get(battleId);
-            if (!b) return;
+            if (!b || b.isEmptySlot) return; // Sécurité : ignore les slots vides
 
             window._currentBattleModalContext = {
                 battleId: battleId,
@@ -1217,6 +1214,7 @@
 
                 const activeHeroMap = isDefenseMode ? ourHeroMap : enemyHeroMap;
                 const activeTitanMap = isDefenseMode ? ourTitanMap : enemyTitanMap;
+                const activeSlotsTarget = isDefenseMode ? ourSlots : enemySlots;
 
                 collectRows(appState.heroes, activeHeroMap, {}, 'Héros');
                 collectRows(appState.titans, {}, activeTitanMap, 'Titan');
@@ -1228,36 +1226,100 @@
                     attacksBySlot[atk.slot].push(atk);
                 });
 
-                Object.keys(attacksBySlot).forEach(sId => {
-                    let slotList = attacksBySlot[sId];
-                    slotList.sort((a, b) => a.dateTimeFull.localeCompare(b.dateTimeFull));
+                // Étape 1 : Calcul intermédiaire pour déterminer le score provisoire de chaque slot (notamment le Bridge 7, 8, 9)
+                let tempSlotPoints = {};
+                for (let sId = 1; sId <= 30; sId++) {
+                    let slotInfo = activeSlotsTarget[String(sId)];
+                    let teamArr = slotInfo?.team;
+                    let isEmptyTeam = !teamArr || teamArr.length === 0 || (Array.isArray(teamArr) && teamArr.length === 1 && Object.keys(teamArr[0]).length === 0);
 
-                    let currentSlotTotal = 0;
-                    slotList.forEach(atk => {
-                        let before = currentSlotTotal;
-                        let added = atk.points;
+                    if (isEmptyTeam) {
+                        tempSlotPoints[sId] = (sId <= 9) ? 20 : 0;
+                    } else {
+                        let slotList = attacksBySlot[sId];
+                        let currentSlotTotal = 0;
+                        slotList.forEach(atk => {
+                            let before = currentSlotTotal;
+                            let added = atk.points;
+                            if (before >= 20) added = 0;
+                            else if (before + added > 20) added = 20 - before;
+                            currentSlotTotal += added;
+                        });
+                        tempSlotPoints[sId] = currentSlotTotal;
+                    }
+                }
 
-                        if (before >= 20) {
-                            added = 0;
-                        } else if (before + added > 20) {
-                            added = 20 - before;
+                // Vérification si le Bridge (7, 8, 9) est entièrement validé (>= 20 pts chacun)
+                let bridgeCaptured = (tempSlotPoints[7] >= 20 && tempSlotPoints[8] >= 20 && tempSlotPoints[9] >= 20);
+
+                // Étape 2 : Attribution définitive des points et construction des objets d'affichage
+                for (let sId = 1; sId <= 30; sId++) {
+                    let slotInfo = activeSlotsTarget[String(sId)];
+                    let teamArr = slotInfo?.team;
+                    let isEmptyTeam = !teamArr || teamArr.length === 0 || (Array.isArray(teamArr) && teamArr.length === 1 && Object.keys(teamArr[0]).length === 0);
+
+                    if (isEmptyTeam) {
+                        let pointsVal = 0;
+                        if (sId <= 9) {
+                            pointsVal = 20;
+                        } else if (bridgeCaptured) {
+                            pointsVal = 20;
                         }
 
-                        currentSlotTotal += added;
-                        let after = currentSlotTotal;
+                        slotPoints[sId] = pointsVal;
 
-                        atk.cumulBefore = before;
-                        atk.points = added;
-                        atk.cumulAfter = after;
-                        atk.isSuccessful = (after === 20) || (before >= 20 && added > 0);
-
+                        battleCounter++;
+                        let bId = `empty_${isDefenseMode ? 'def' : 'atk'}_${battleCounter}`;
                         let fName = slotToFort[sId];
-                        if (fName) {
-                            fortAttacks[fName].push(atk);
-                        }
-                    });
-                    slotPoints[sId] = currentSlotTotal;
-                });
+                        let dummyAtk = {
+                            id: bId,
+                            attacker: "Sans défense",
+                            defender: slotInfo?.user?.name || `Slot ${sId}`,
+                            attPower: "",
+                            defPower: "",
+                            slot: sId,
+                            points: pointsVal,
+                            type: sId >= 8 && sId <= 24 ? "Titan" : "Héros",
+                            timeOnly: "",
+                            dateTimeFull: "",
+                            cumulBefore: 0,
+                            cumulAfter: pointsVal,
+                            isSuccessful: pointsVal > 0,
+                            isEmptySlot: true
+                        };
+                        window._activeBattlesMap.set(bId, dummyAtk);
+                        if (fName) fortAttacks[fName].push(dummyAtk);
+                    } else {
+                        let slotList = attacksBySlot[sId];
+                        slotList.sort((a, b) => a.dateTimeFull.localeCompare(b.dateTimeFull));
+
+                        let currentSlotTotal = 0;
+                        slotList.forEach(atk => {
+                            let before = currentSlotTotal;
+                            let added = atk.points;
+
+                            if (before >= 20) {
+                                added = 0;
+                            } else if (before + added > 20) {
+                                added = 20 - before;
+                            }
+
+                            currentSlotTotal += added;
+                            let after = currentSlotTotal;
+
+                            atk.cumulBefore = before;
+                            atk.points = added;
+                            atk.cumulAfter = after;
+                            atk.isSuccessful = (after === 20) || (before >= 20 && added > 0);
+
+                            let fName = slotToFort[sId];
+                            if (fName) {
+                                fortAttacks[fName].push(atk);
+                            }
+                        });
+                        slotPoints[sId] = currentSlotTotal;
+                    }
+                }
 
                 Object.keys(fortAttacks).forEach(fName => {
                     fortAttacks[fName].sort((a, b) => { 
@@ -1355,6 +1417,19 @@
                                 <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
                                     ${f.attacks.length === 0 ? `<div class="text-xs text-slate-500 italic py-1">Aucune bataille enregistrée pour cette date.</div>` : 
                                         f.attacks.map(atk => {
+                                            if (atk.isEmptySlot) {
+                                                const pointsColorClass = atk.points > 0 ? 'text-emerald-400' : 'text-slate-500';
+                                                return `
+                                                    <div class="flex justify-between items-center text-xs bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-800/40 opacity-75">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-bold text-slate-500 bg-slate-950 border border-slate-800 px-1.5 py-0.5 rounded">S${atk.slot}</span>
+                                                            <span class="text-slate-400 italic">Sans défense</span>
+                                                        </div>
+                                                        <span class="font-mono font-bold ${pointsColorClass}">+${atk.points}</span>
+                                                    </div>
+                                                `;
+                                            }
+
                                             const attackerColor = appState.currentView === 'attacks' ? 'text-cyan-300' : 'text-orange-300';
                                             const powerBg = appState.currentView === 'attacks' ? 'bg-cyan-950/40 text-cyan-300' : 'bg-orange-950/40 text-orange-300';
                                             const pointsColorClass = atk.isSuccessful ? 'text-emerald-400' : 'text-rose-500 font-black';
