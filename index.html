@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.64</title>
+    <title>Hero Wars : GvG Command Center - v1.69</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
@@ -12,79 +12,93 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.64</span>
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.69</span>
                 </h1>
-                <p class="text-xs text-slate-400">UI Dynamique : Historique interactif et synchro des équipes</p>
+                <p class="text-xs text-slate-400">UI Compacte : Organisation logique des imports & backups</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
-                <button onclick="exportGlobalBackup()" class="bg-amber-600/85 hover:bg-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1">
-                    <span>📦</span> Export Global (JSON)
+                <!-- Bouton d'accès au mode Admin (Cadenas) -->
+                <button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Panneau d'administration">
+                    <span>🔒</span> Admin
                 </button>
-                <button onclick="exportAllBattlesCSV()" class="bg-blue-600/85 hover:bg-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1">
-                    <span>💾</span> Export CSV
-                </button>
-                <button onclick="resetDatabase()" class="bg-red-600/85 hover:bg-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">Purger</button>
             </div>
         </header>
 
-        <!-- Import Section -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- 1. JSON / Sauvegarde -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-amber-300 mb-2">1. Guerres (JSON)</h2>
-                    <input type="file" id="jsonInput" accept=".json" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
-                </div>
-                
-                <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between gap-2 mt-2">
-                    <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2 py-1.5 rounded text-xs font-bold transition cursor-pointer">◀</button>
-                    <div class="text-center flex-1 flex items-center justify-center gap-2">
-                        <span id="warDateText" class="text-lg font-extrabold text-amber-400 tracking-wider">--/--</span>
-                        <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
-                    </div>
-                    <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2 py-1.5 rounded text-xs font-bold transition cursor-pointer">▶</button>
-                </div>
+        <!-- Barre de navigation rapide des guerres -->
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg flex items-center justify-between max-w-md mx-auto">
+            <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">◀ Guerre Préc.</button>
+            <div class="text-center flex-1 flex items-center justify-center gap-2">
+                <span id="warDateText" class="text-lg font-extrabold text-amber-400 tracking-wider">--/--</span>
+                <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
             </div>
-
-            <!-- 2. Import Fichiers CSV -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-blue-300 mb-2">2. Importer Fichiers CSV</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-[10px] text-slate-400 block mb-1">Héros</span>
-                            <input type="file" id="heroInput" accept=".csv" class="block w-full text-[10px] text-slate-400 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white cursor-pointer">
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-slate-400 block mb-1">Titans</span>
-                            <input type="file" id="titanInput" accept=".csv" class="block w-full text-[10px] text-slate-400 file:py-1 file:px-2 file:rounded file:border-0 file:bg-purple-600 file:text-white cursor-pointer">
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between text-[11px] font-mono text-slate-400">
-                    <span id="heroMeta">0 héros</span>
-                    <span id="titanMeta">0 titans</span>
-                </div>
-            </div>
-
-            <!-- 3. Presse-papier Intelligent -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-emerald-300 mb-2">3. Import Rapide Presse-papier</h2>
-                    <button onclick="importSmartClipboard()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-md">
-                        <span>📋</span> Coller le CSV (Auto-détection)
-                    </button>
-                </div>
-                <div id="smartImportLog" class="text-[10px] font-mono text-emerald-400 text-center h-4">Clique pour coller</div>
-            </div>
+            <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">Guerre Suiv. ▶</button>
         </div>
 
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.64)</div>
-                <p class="text-sm">Importe tes fichiers ou utilise le bouton pour coller tes données.</p>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.69)</div>
+                <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale d'Administration Compacte (Cadenas) -->
+    <div id="adminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
+                    <span>🔒</span> Panneau d'Administration
+                </h3>
+                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6 flex-1">
+                <input type="file" id="jsonWarInput" accept=".json" class="hidden" onchange="handleJSONWarImport(event)">
+                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <!-- Ligne 1 : Imports exclusifs -->
+                    <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">⚔️</div>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Import Guerre (JSON)</span>
+                    </button>
+
+                    <button onclick="importSmartClipboard()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/50 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-lg shadow">📋</div>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-emerald-300 leading-tight">Coller batailles depuis le clipboard</span>
+                    </button>
+
+                    <button onclick="document.getElementById('jsonRestoreInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/50 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-blue-400 flex items-center justify-center text-lg shadow">📥</div>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Restore Données</span>
+                    </button>
+
+                    <!-- Ligne 2 : Sauvegardes & Danger -->
+                    <button onclick="exportGlobalBackup()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">📦</div>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Backup Données</span>
+                    </button>
+
+                    <button onclick="exportAllBattlesCSV()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/50 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-blue-400 flex items-center justify-center text-lg shadow">💾</div>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Export Batailles (CSV)</span>
+                    </button>
+
+                    <button onclick="resetDatabase()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-red-950/20 hover:bg-red-950/40 border border-red-900/50 hover:border-red-500 text-center transition cursor-pointer group h-24 shadow-md">
+                        <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-red-500 flex items-center justify-center text-lg shadow animate-pulse">☢️</div>
+                        <span class="text-[11px] font-bold text-red-400 group-hover:text-red-300 leading-tight">Purger Base</span>
+                    </button>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl flex justify-between items-center text-xs font-mono">
+                    <span id="smartImportLog" class="text-slate-400">Prêt</span>
+                    <div class="flex gap-4">
+                        <span id="heroMeta" class="text-blue-400">0 héros</span>
+                        <span id="titanMeta" class="text-purple-400">0 titans</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -101,9 +115,7 @@
             <div class="p-3 border-b border-slate-800 bg-slate-950/30">
                 <input type="text" id="enemySearchInput" placeholder="Rechercher une guilde..." oninput="filterEnemyModalList()" class="w-full text-xs bg-slate-950 text-slate-200 border border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-amber-500/50">
             </div>
-            <div id="enemyModalList" class="p-3 overflow-y-auto space-y-1.5 flex-1">
-                <!-- Rempli dynamiquement -->
-            </div>
+            <div id="enemyModalList" class="p-3 overflow-y-auto space-y-1.5 flex-1"></div>
         </div>
     </div>
 
@@ -113,9 +125,7 @@
             <div class="p-3 border-b border-slate-800 flex justify-end items-center bg-slate-950/50">
                 <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-3 py-1 rounded cursor-pointer bg-slate-800 hover:bg-slate-700 transition">Fermer ✕</button>
             </div>
-            <div id="battleModalContent" class="p-6 overflow-x-auto overflow-y-auto space-y-4 flex-1">
-                <!-- Rempli dynamiquement sur une ligne -->
-            </div>
+            <div id="battleModalContent" class="p-6 overflow-x-auto overflow-y-auto space-y-4 flex-1"></div>
         </div>
     </div>
 
@@ -142,22 +152,32 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadFromLocalStorage();
-
-            const jsonInput = document.getElementById('jsonInput');
-            const heroInput = document.getElementById('heroInput');
-            const titanInput = document.getElementById('titanInput');
-
-            if (jsonInput) jsonInput.addEventListener('change', handleJSONImport);
-            if (heroInput) heroInput.addEventListener('change', (e) => handleCSVFile(e, 'hero'));
-            if (titanInput) titanInput.addEventListener('change', (e) => handleCSVFile(e, 'titan'));
-
-            updateNavigationUI();
-            updateDatabaseUI();
-            if (appState.activeKey) {
-                renderDashboard();
+            try {
+                loadFromLocalStorage();
+                updateNavigationUI();
+                updateDatabaseUI();
+                if (appState.activeKey) {
+                    renderDashboard();
+                }
+            } catch (err) {
+                console.error("Erreur critique au chargement :", err);
+                const dash = document.getElementById('dashboard');
+                if (dash) {
+                    dash.innerHTML = `<div class="bg-red-950/30 border border-red-900 p-6 rounded-xl text-center text-red-400">
+                        <h3 class="font-bold text-sm mb-1">Erreur de chargement des données</h3>
+                        <p class="text-xs">Ouvrez le panneau Admin (🔒) pour exporter ou réinitialiser vos données si nécessaire.</p>
+                    </div>`;
+                }
             }
         });
+
+        function openAdminModal() {
+            document.getElementById('adminModal').classList.remove('hidden');
+        }
+
+        function closeAdminModal() {
+            document.getElementById('adminModal').classList.add('hidden');
+        }
 
         function saveToLocalStorage() {
             try {
@@ -223,16 +243,15 @@
         }
 
         function resetDatabase() {
-            if (confirm("Veux-tu vraiment purger toute la database locale ?")) {
+            if (confirm("⚠️ ATTENTION : Veux-tu vraiment purger toute la base de données locale ? Cette action est irréversible !")) {
                 localStorage.removeItem('hw_gvg_db');
                 appState = { wars: {}, activeKey: null, heroes: [], titans: [], currentView: 'attacks' };
-                document.getElementById('jsonInput').value = '';
-                document.getElementById('heroInput').value = '';
-                document.getElementById('titanInput').value = '';
-                document.getElementById('smartImportLog').innerText = 'Base purgée';
+                const logEl = document.getElementById('smartImportLog');
+                if (logEl) logEl.innerText = 'Base purgée';
                 updateNavigationUI();
                 updateDatabaseUI();
                 renderDashboard();
+                closeAdminModal();
             }
         }
 
@@ -368,9 +387,61 @@
             closeEnemyModal();
         }
 
-        // ==========================================
-        // AUTO-DÉTECTION PAR CONTENU (PETS)
-        // ==========================================
+        function handleJSONWarImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const parsedData = JSON.parse(evt.target.result);
+                    const fileName = file.name;
+                    appState.wars[fileName] = parsedData;
+                    appState.activeKey = fileName;
+                    saveToLocalStorage();
+                    updateNavigationUI();
+                    renderDashboard();
+                    e.target.value = '';
+                    closeAdminModal();
+                    alert("Guerre importée avec succès !");
+                } catch(err) {
+                    alert("Erreur de lecture du JSON de guerre : " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function handleJSONRestoreImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const parsedData = JSON.parse(evt.target.result);
+                    if (parsedData && typeof parsedData === 'object' && parsedData.wars && Array.isArray(parsedData.heroes) && Array.isArray(parsedData.titans)) {
+                        if (confirm("Restaurer cette sauvegarde globale complète ?")) {
+                            appState.wars = { ...appState.wars, ...parsedData.wars };
+                            appState.heroes = mergeUniqueRows(appState.heroes, parsedData.heroes);
+                            appState.titans = mergeUniqueRows(appState.titans, parsedData.titans);
+                            const keys = getSortedWarKeys();
+                            if (!appState.activeKey && keys.length > 0) appState.activeKey = keys[0];
+                            saveToLocalStorage();
+                            updateNavigationUI();
+                            updateDatabaseUI();
+                            if (appState.activeKey) renderDashboard();
+                            alert("Restauration réussie !");
+                        }
+                    } else {
+                        alert("Le fichier sélectionné ne correspond pas à un format de sauvegarde globale valide.");
+                    }
+                    e.target.value = '';
+                    closeAdminModal();
+                } catch(err) {
+                    alert("Erreur de lecture du fichier de sauvegarde : " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
         async function importSmartClipboard() {
             if (!navigator.clipboard || !navigator.clipboard.readText) {
                 alert("Votre navigateur ne permet pas l'accès automatique au presse-papier.");
@@ -386,21 +457,6 @@
             } catch (err) {
                 alert("Impossible de lire le presse-papier : " + err.message);
             }
-        }
-
-        function handleCSVFile(e, forcedType) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                if (forcedType) {
-                    processCSVText(evt.target.result, forcedType);
-                } else {
-                    detectAndProcessCSV(evt.target.result);
-                }
-                e.target.value = '';
-            };
-            reader.readAsText(file);
         }
 
         function detectAndProcessCSV(csvText) {
@@ -429,17 +485,6 @@
             });
         }
 
-        function processCSVText(csvText, type) {
-            Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    processCSVTextParsed(results.data, type);
-                },
-                error: function(err) { alert("Erreur de parsing CSV : " + err.message); }
-            });
-        }
-
         function processCSVTextParsed(incomingRows, type) {
             const previousCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
             
@@ -454,7 +499,7 @@
             
             const logEl = document.getElementById('smartImportLog');
             if (logEl) {
-                logEl.innerText = `✅ +${addedCount} batailles de ${type.toUpperCase()} (${incomingRows.length} lignes)`;
+                logEl.innerText = `✅ +${addedCount} batailles de ${type.toUpperCase()}`;
             }
 
             saveToLocalStorage();
@@ -482,9 +527,6 @@
             if (tMeta) tMeta.innerText = `${appState.titans.length} titans`;
         }
 
-        // ==========================================
-        // GESTION DES AVATARS & FAMILIERS
-        // ==========================================
         function parseTeamString(rawStr, isAttacker, isTitanTeam = false) {
             if (!rawStr || typeof rawStr !== 'string') {
                 return { pet: { name: '###', power: '' }, heroes: Array(5).fill({ name: '###', power: '' }) };
@@ -723,9 +765,6 @@
             `;
         }
 
-        // ==========================================
-        // RECHERCHE & CONSTRUCTION DE L'HISTORIQUE
-        // ==========================================
         function getDefenderAttacksHistory(defId, isTitan) {
             if (!defId) return [];
             const rows = isTitan ? appState.titans : appState.heroes;
@@ -755,7 +794,6 @@
                 }
             });
 
-            // Tri chronologique strict : du plus récent au plus ancien (en prenant compte l'heure complète)
             history.sort((a, b) => b.dateTimeFull.localeCompare(a.dateTimeFull));
             return history;
         }
@@ -789,8 +827,6 @@
             }
 
             const pointsColorClass = b.isSuccessful ? 'text-emerald-400' : 'text-rose-500';
-
-            // Historique des attaques subies par ce défenseur
             const defenderAttacksHistory = getDefenderAttacksHistory(b.defId, isTitan);
 
             function renderHistorySelect(historyList) {
@@ -820,7 +856,6 @@
                         <span class="font-mono text-slate-400 text-xs">${timePart}</span>
                     </div>
 
-                    <!-- Attaquant (avec historique interactif sous sa composition) -->
                     <div class="flex flex-col space-y-1 flex-1">
                         <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(b.attacker)}</span>
@@ -832,7 +867,6 @@
 
                     <span class="text-slate-600 font-bold text-sm px-2">VS</span>
 
-                    <!-- Défenseur -->
                     <div class="flex flex-col space-y-1 flex-1">
                         <div class="flex items-center gap-2 text-[11px] px-1">
                             <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(b.defender)}</span>
@@ -860,7 +894,6 @@
             const dateTime = selectedRow['date time'] || '';
             const pts = parseInt(selectedRow['points'] || 0);
 
-            // Reconstitution dynamique de l'objet combat pour la modale
             let updatedBattleObj = {
                 id: ctx.battleId,
                 attacker: selectedRow['att name'] || selectedRow['attacker id'] || 'Inconnu',
@@ -900,42 +933,6 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
-        }
-
-        function handleJSONImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const parsedData = JSON.parse(evt.target.result);
-                    if (parsedData && typeof parsedData === 'object' && parsedData.wars && Array.isArray(parsedData.heroes) && Array.isArray(parsedData.titans)) {
-                        if (confirm("Restaurer la sauvegarde globale complète ?")) {
-                            appState.wars = { ...appState.wars, ...parsedData.wars };
-                            appState.heroes = mergeUniqueRows(appState.heroes, parsedData.heroes);
-                            appState.titans = mergeUniqueRows(appState.titans, parsedData.titans);
-                            const keys = getSortedWarKeys();
-                            if (!appState.activeKey && keys.length > 0) appState.activeKey = keys[0];
-                            saveToLocalStorage();
-                            updateNavigationUI();
-                            updateDatabaseUI();
-                            if (appState.activeKey) renderDashboard();
-                            alert("Restauration réussie !");
-                        }
-                    } else {
-                        const fileName = file.name;
-                        appState.wars[fileName] = parsedData;
-                        appState.activeKey = fileName;
-                        saveToLocalStorage();
-                        updateNavigationUI();
-                        renderDashboard();
-                    }
-                    e.target.value = '';
-                } catch(err) {
-                    alert("Erreur de lecture du JSON : " + err.message);
-                }
-            };
-            reader.readAsText(file);
         }
 
         function getDateFromSeasonDay(seasonDayStr) {
@@ -996,13 +993,6 @@
             dateTextEl.innerText = warDateObj.fullDate;
         }
 
-        function updateDatabaseUI() {
-            const hMeta = document.getElementById('heroMeta');
-            const tMeta = document.getElementById('titanMeta');
-            if (hMeta) hMeta.innerText = `${appState.heroes.length} héros`;
-            if (tMeta) tMeta.innerText = `${appState.titans.length} titans`;
-        }
-
         function formatPower(val) {
             let num = parseInt(val);
             if (isNaN(num) || num === 0) return val;
@@ -1036,7 +1026,7 @@
                 dash.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
                         <div class="text-xl font-medium text-slate-300 mb-2">Aucune guerre active</div>
-                        <p class="text-sm">Importe un fichier JSON de guerre ou une sauvegarde globale pour commencer.</p>
+                        <p class="text-sm">Cliquez sur <span class="text-amber-400 font-bold">🔒 Admin</span> pour importer une guerre.</p>
                     </div>
                 `;
                 return;
