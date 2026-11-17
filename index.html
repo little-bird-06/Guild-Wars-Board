@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.80</title>
+    <title>Guild Wars Board - v1.83</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.80</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.83</span>
                 </h1>
-                <p class="text-xs text-slate-400">Calcul des points et du Bridge pour les slots sans défense</p>
+                <p class="text-xs text-slate-400">mise à jour des fonctions backup/restore pour le Cloud (admin)</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -41,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.80)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.83)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -59,8 +59,7 @@
             
             <div class="p-6 overflow-y-auto space-y-6 flex-1">
                 <input type="file" id="jsonWarInput" accept=".json" class="hidden" onchange="handleJSONWarImport(event)">
-                <! input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
-                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="migrateBackupToFirebase(event)">
+                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
@@ -173,16 +172,7 @@
 	
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-				// on désactive le chargement du storage local
-                /*loadFromLocalStorage();
-                updateNavigationUI();
-                updateDatabaseUI();
-                if (appState.activeKey) {
-                    renderDashboard();
-                }*/
-                // on charge du cloud et on attend que le chargement soit terminé
-                await loadFromCloud();
-
+            	reloadApplication();
             } catch (err) {
                 console.error("Erreur critique au chargement :", err);
                 const dash = document.getElementById('dashboard');
@@ -194,6 +184,30 @@
                 }
             }
         });
+
+		// --- FONCTION CENTRALE DE MISE À JOUR DE L'APPLICATION ---
+		async function reloadApplication() {
+                // on charge du cloud et on attend que le chargement soit terminé
+                await loadFromCloud(MAX_HISTORY_WEEKS);
+                
+                // 🔥 Remise à zéro / Initialisation sur la guerre la plus récente à chaque chargement Firebase
+        		const keys = getSortedWarKeys();
+        		if (keys.length > 0) {
+            		// keys est trié par ordre croissant (ex: 202645, 202646, 202647)
+            		// La plus récente est donc la DERNIÈRE du tableau (keys.length - 1)
+            		appState.activeKey = keys[keys.length - 1];
+        		} else {
+        			appState.activeKey= null;
+        		}
+
+        		// Appel des fonctions de mise à jour de l'interface et du rendu
+        		// update du selecteur de guerres (dates)
+        		if (typeof updateNavigationUI === 'function') updateNavigationUI();
+        		// update des compteurs de données
+        		if (typeof updateDatabaseUI === 'function') updateDatabaseUI();
+        		// update du dashboard
+        		if (typeof renderDashboard === 'function') renderDashboard();
+        }
 
 // --- UTILITAIRE 1 : Retourne un format de date de GW (YYYYWW) à partir d'une date du CSV (DD/MM HH:MM) ---
 function getWeekKeyFromDateString(dateStr) {
@@ -234,8 +248,8 @@ function getWeekKeyForWar(warKey, warData) {
     return getWeekKeyFromDateString(new Date().toISOString());
 }
 
-// --- FONCTION DE MIGRATION STRICTE (JSON par season_day / CSV par date de ligne) ---
-async function migrateBackupToFirebase(event) {
+// --- FONCTION DE RESTORE (D'UN BACKUP) ---
+async function handleJSONRestoreImport(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -309,6 +323,8 @@ async function migrateBackupToFirebase(event) {
                 }
             }
             if (count > 0) await batch.commit();
+            
+            await reloadApplication();
 
             alert("🎉 Migration réussie ! Tes guerres (par season_day) et tes batailles CSV (par date DD/MM) sont parfaitement rangées.");
             if (statusEl) statusEl.innerText = '✅ Migration Cloud terminée';
@@ -322,18 +338,23 @@ async function migrateBackupToFirebase(event) {
 }
 
 // --- CHARGEMENT DIRECT DANS APPSATE DEpuis FIRESTORE ---
-async function loadFromCloud() {
-    console.log("📥 Chargement des 8 dernières semaines et injection dans AppState...");
+async function loadFromCloud(maxWeeks) {
+    console.log(`📥 Chargement des données depuis le Cloud (Limite: ${maxWeeks === null ? 'Illimitée' : maxWeeks} semaines)...`);
     const statusEl = document.getElementById('globalStatus');
-    if (statusEl) statusEl.innerText = 'Chargement des données depuis Firestore...';
+    if (statusEl) statusEl.innerText = 'Chargement des données depuis le Cloud...';
 
     try {
-        const snapshot = await db.collection("wars")
+        let query = db.collection("wars")
             .doc("my_guild")
             .collection("weeks")
-            .orderBy("weekId", "desc")
-            .limit(8)
-            .get();
+            .orderBy("weekId", "desc");
+
+        // Si maxWeeks est défini et supérieur à 0, on applique la limite. Sinon, on prend tout.
+        if (maxWeeks !== null && maxWeeks !== undefined && maxWeeks > 0) {
+            query = query.limit(maxWeeks);
+        }
+
+        const snapshot = await query.get();
 
         if (snapshot.empty) {
             console.log("ℹ️ Aucune donnée trouvée dans le Cloud.");
@@ -361,30 +382,15 @@ async function loadFromCloud() {
             }
         });
 
-        console.log("🔥 AppState mis à jour avec succès !");
+        console.log("🔥 Données chargées avec succès !");
         console.log(`- Guerres en mémoire : ${Object.keys(appState.wars).length}`);
         console.log(`- Lignes de héros : ${appState.heroes.length}`);
         console.log(`- Lignes de titans : ${appState.titans.length}`);
 
         if (statusEl) statusEl.innerText = '✅ Données Cloud chargées';
-
-		// 🔥 Remise à zéro / Initialisation sur la guerre la plus récente à chaque chargement Firebase
-        const keys = getSortedWarKeys();
-        if (keys.length > 0) {
-            // keys est trié par ordre croissant (ex: 202645, 202646, 202647)
-            // La plus récente est donc la DERNIÈRE du tableau (keys.length - 1)
-            appState.activeKey = keys[keys.length - 1];
-        } else {
-            appState.activeKey = null;
-        }
-
-        // Appel des fonctions de mise à jour de l'interface et du rendu
-        if (typeof updateNavigationUI === 'function') updateNavigationUI();
-        if (typeof updateDatabaseUI === 'function') updateDatabaseUI();
-        if (typeof renderDashboard === 'function') renderDashboard();
                         
     } catch (err) {
-        console.error("❌ Erreur lors du chargement Cloud :", err);
+        console.error("❌ Erreur lors du chargement depuis le Cloud :", err);
         if (statusEl) statusEl.innerText = '❌ Erreur de chargement';
         alert("Erreur de chargement : " + err.message);
     }
@@ -406,30 +412,29 @@ async function loadFromCloud() {
             }
         }
 
-        function loadFromLocalStorage() {
-            try {
-                const saved = localStorage.getItem('hw_gvg_db');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    appState.wars = parsed.wars || {};
-                    appState.activeKey = parsed.activeKey || null;
-                    appState.heroes = parsed.heroes || [];
-                    appState.titans = parsed.titans || [];
-                }
-            } catch(err) {
-                console.warn("Erreur chargement localStorage :", err);
-            }
-        }
+        async function exportGlobalBackup() {
+    		const statusEl = document.getElementById('globalStatus');
+    		if (statusEl) statusEl.innerText = 'Préparation du backup complet...';
 
-        function exportGlobalBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `herowars_gvg_backup_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
+    		// 1. On charge TOUTES les semaines du Cloud dans AppState sans restriction
+    		await loadFromCloud(null);
+
+    		// 2. On exporte l'AppState complet sous forme de fichier JSON
+    		const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+    		const downloadAnchor = document.createElement('a');
+    		downloadAnchor.setAttribute("href", dataStr);
+    		downloadAnchor.setAttribute("download", `herowars_gvg_backup_${new Date().toISOString().slice(0,10)}.json`);
+    		document.body.appendChild(downloadAnchor);
+    		downloadAnchor.click();
+    		downloadAnchor.remove();
+    		
+    		// 3. On recharge seulement le snapshot de données pour retrouver l'état d'avant le backup
+    		// et assurer que l'activeKey pointe sur les memes données
+    		await loadFromCloud(MAX_HISTORY_WEEKS);
+
+    		if (statusEl) statusEl.innerText = '✅ Backup complet exporté';
+    		console.log("📦 Backup global exporté avec succès !");
+		}
 
         function exportCSV(type) {
             const rows = type === 'hero' ? appState.heroes : appState.titans;
@@ -624,38 +629,6 @@ async function loadFromCloud() {
                     alert("Guerre importée avec succès !");
                 } catch(err) {
                     alert("Erreur de lecture du JSON de guerre : " + err.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function handleJSONRestoreImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const parsedData = JSON.parse(evt.target.result);
-                    if (parsedData && typeof parsedData === 'object' && parsedData.wars && Array.isArray(parsedData.heroes) && Array.isArray(parsedData.titans)) {
-                        if (confirm("Restaurer cette sauvegarde globale complète ?")) {
-                            appState.wars = { ...appState.wars, ...parsedData.wars };
-                            appState.heroes = mergeUniqueRows(appState.heroes, parsedData.heroes);
-                            appState.titans = mergeUniqueRows(appState.titans, parsedData.titans);
-                            const keys = getSortedWarKeys();
-                            if (!appState.activeKey && keys.length > 0) appState.activeKey = keys[0];
-                            saveToLocalStorage();
-                            updateNavigationUI();
-                            updateDatabaseUI();
-                            if (appState.activeKey) renderDashboard();
-                            alert("Restauration réussie !");
-                        }
-                    } else {
-                        alert("Le fichier sélectionné ne correspond pas à un format de sauvegarde globale valide.");
-                    }
-                    e.target.value = '';
-                    closeAdminModal();
-                } catch(err) {
-                    alert("Erreur de lecture du fichier de sauvegarde : " + err.message);
                 }
             };
             reader.readAsText(file);
