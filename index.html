@@ -2,9 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Hero Wars : GvG Command Center - v1.71</title>
+    <title>Hero Wars : GvG Command Center - v1.80</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+	<!-- Firebase App (Base SDK) -->
+	<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+	<!-- Firebase Firestore -->
+	<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
     <div class="max-w-7xl mx-auto space-y-6">
@@ -12,13 +16,13 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.71</span>
+                    <span>⚔️</span> Hero Wars : GvG Command Center <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.80</span>
                 </h1>
                 <p class="text-xs text-slate-400">Calcul des points et du Bridge pour les slots sans défense</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
-                <button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Panneau d'administration">
+                <! button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Panneau d'administration">
                     <span>🔒</span> Admin
                 </button>
             </div>
@@ -37,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.71)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Centre de commande prêt (v1.80)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -55,7 +59,8 @@
             
             <div class="p-6 overflow-y-auto space-y-6 flex-1">
                 <input type="file" id="jsonWarInput" accept=".json" class="hidden" onchange="handleJSONWarImport(event)">
-                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
+                <! input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
+                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="migrateBackupToFirebase(event)">
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
@@ -147,15 +152,37 @@
             { name: "Bastion of Ice", slots: [22, 23, 24], bonus: 60 },
             { name: "Citadel", slots: [25, 26, 27, 28, 29, 30], bonus: 120 }
         ];
+        
+        // --- CONFIGURATION FIREBASE ---
+          // Your web app's Firebase configuration
+  		const firebaseConfig = {
+    		apiKey: "AIzaSyAnDpLsGMrIKac-LVaNn4feGArCkyk2AFw",
+    		authDomain: "guild-wars-dashboard.firebaseapp.com",
+    		projectId: "guild-wars-dashboard",
+    		storageBucket: "guild-wars-dashboard.firebasestorage.app",
+    		messagingSenderId: "48502757594",
+    		appId: "1:48502757594:web:55247df5d920e90b29ede3"
+  		};
 
-        document.addEventListener('DOMContentLoaded', () => {
+		// Initialisation de Firebase
+		firebase.initializeApp(firebaseConfig);
+		const db = firebase.firestore();
+
+		// Constante pour limiter l'historique au démarrage (fixée à 8 semaines)
+		const MAX_HISTORY_WEEKS = 8;
+	
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
-                loadFromLocalStorage();
+				// on désactive le chargement du storage local
+                /*loadFromLocalStorage();
                 updateNavigationUI();
                 updateDatabaseUI();
                 if (appState.activeKey) {
                     renderDashboard();
-                }
+                }*/
+                // on charge du cloud et on attend que le chargement soit terminé
+                await loadFromCloud();
+
             } catch (err) {
                 console.error("Erreur critique au chargement :", err);
                 const dash = document.getElementById('dashboard');
@@ -167,6 +194,201 @@
                 }
             }
         });
+
+// --- UTILITAIRE 1 : Retourne un format de date de GW (YYYYWW) à partir d'une date du CSV (DD/MM HH:MM) ---
+function getWeekKeyFromDateString(dateStr) {
+    if (!dateStr) return null;
+    let cleanStr = String(dateStr).trim();
+    
+    // Extrait le DD et le MM du format "DD/MM HH:MM" ou "DD/MM"
+    let match = cleanStr.match(/^(\d{2})[/-](\d{2})/);
+    if (!match) return null;
+
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10);
+    let year = 2026; // Année de référence pour cette migration
+
+    // Calcul de la semaine ISO
+    let dateObj = new Date(Date.UTC(year, month - 1, day));
+    let onejan = new Date(Date.UTC(year, 0, 1));
+    let weekNum = Math.ceil((((dateObj - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
+    
+    return `${year}${String(weekNum).padStart(2, '0')}`;
+}
+
+// --- UTILITAIRE 2 : Extraire la semaine (YYYYWW) pour une guerre ---
+function getWeekKeyForWar(warKey, warData) {
+    // 1. Si la guerre contient un season_day (ex: 202647_2), on l'utilise en priorité
+    if (warData && warData.season_day) {
+        let parts = String(warData.season_day).replace('-', '_').split('_');
+        if (parts[0] && parts[0].length >= 6) {
+            return parts[0];
+        }
+    }
+    // 2. Sinon, on essaie d'extraire l'année/mois/jour depuis la clé de la guerre ou son contenu
+    let match = warKey.match(/(\d{4})[-_]?(\d{2})[-_]?(\d{2})/);
+    if (match) {
+        return getWeekKeyFromDateString(`${match[1]}/${match[2]}/${match[3]}`);
+    }
+    // 3. Dernier recours : date du jour ou valeur par défaut
+    return getWeekKeyFromDateString(new Date().toISOString());
+}
+
+// --- FONCTION DE MIGRATION STRICTE (JSON par season_day / CSV par date de ligne) ---
+async function migrateBackupToFirebase(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('globalStatus');
+    if (statusEl) statusEl.innerText = 'Migration stricte en cours...';
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const parsedGlobalData = JSON.parse(e.target.result);
+            let weeksDataMap = {};
+
+            function getOrCreateWeekBucket(wk) {
+                if (!weeksDataMap[wk]) {
+                    weeksDataMap[wk] = { weekId: wk, wars: {}, heroes: [], titans: [] };
+                }
+                return weeksDataMap[wk];
+            }
+
+            // 1. GUERRES (JSON) -> Uniquement via season_day
+            if (parsedGlobalData.wars) {
+                for (let [wKey, wData] of Object.entries(parsedGlobalData.wars)) {
+                    if (wData && wData.season_day) {
+                        let cleanSeasonDay = String(wData.season_day).replace('-', '_').split('_')[0];
+                        let wk = cleanSeasonDay.replace(/[^0-9]/g, '');
+                        if (wk.length >= 6) {
+                            let bucket = getOrCreateWeekBucket(wk);
+                            bucket.wars[wKey] = wData;
+                        }
+                    }
+                }
+            }
+
+            // 2. HÉROS (CSV) -> Uniquement via la date de ligne (DD/MM)
+            if (Array.isArray(parsedGlobalData.heroes)) {
+                parsedGlobalData.heroes.forEach(row => {
+                    let dateTime = row['date time'] || row['date'] || '';
+                    let wk = getWeekKeyFromDateString(dateTime);
+                    if (wk) {
+                        getOrCreateWeekBucket(wk).heroes.push(row);
+                    }
+                });
+            }
+
+            // 3. TITANS (CSV) -> Uniquement via la date de ligne (DD/MM)
+            if (Array.isArray(parsedGlobalData.titans)) {
+                parsedGlobalData.titans.forEach(row => {
+                    let dateTime = row['date time'] || row['date'] || '';
+                    let wk = getWeekKeyFromDateString(dateTime);
+                    if (wk) {
+                        getOrCreateWeekBucket(wk).titans.push(row);
+                    }
+                });
+            }
+
+            let allWeeks = Object.keys(weeksDataMap);
+
+            // 4. BATCH FIREBASE (Collection "wars" -> Document "my_guild" -> Sous-collection "weeks")
+            let batch = db.batch();
+            let count = 0;
+
+            for (let wk of allWeeks) {
+                let docRef = db.collection("wars").doc("my_guild").collection("weeks").doc(wk);
+                batch.set(docRef, weeksDataMap[wk], { merge: true });
+
+                count++;
+                if (count >= 400) {
+                    await batch.commit();
+                    batch = db.batch();
+                    count = 0;
+                }
+            }
+            if (count > 0) await batch.commit();
+
+            alert("🎉 Migration réussie ! Tes guerres (par season_day) et tes batailles CSV (par date DD/MM) sont parfaitement rangées.");
+            if (statusEl) statusEl.innerText = '✅ Migration Cloud terminée';
+
+        } catch (err) {
+            console.error("❌ Erreur migration :", err);
+            alert("Erreur : " + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// --- CHARGEMENT DIRECT DANS APPSATE DEpuis FIRESTORE ---
+async function loadFromCloud() {
+    console.log("📥 Chargement des 8 dernières semaines et injection dans AppState...");
+    const statusEl = document.getElementById('globalStatus');
+    if (statusEl) statusEl.innerText = 'Chargement des données depuis Firestore...';
+
+    try {
+        const snapshot = await db.collection("wars")
+            .doc("my_guild")
+            .collection("weeks")
+            .orderBy("weekId", "desc")
+            .limit(8)
+            .get();
+
+        if (snapshot.empty) {
+            console.log("ℹ️ Aucune donnée trouvée dans le Cloud.");
+            if (statusEl) statusEl.innerText = '⚠️ Aucune donnée en ligne';
+            return;
+        }
+
+        // 1. Réinitialisation des structures dans AppState
+        appState.wars = {};
+        appState.heroes = [];
+        appState.titans = [];
+
+        // 2. Fusion des 8 semaines récupérées directement dans AppState
+        snapshot.forEach(doc => {
+            let weekData = doc.data(); // Contient { weekId, wars, heroes, titans }
+
+            if (weekData.wars) {
+                Object.assign(appState.wars, weekData.wars);
+            }
+            if (Array.isArray(weekData.heroes)) {
+                appState.heroes.push(...weekData.heroes);
+            }
+            if (Array.isArray(weekData.titans)) {
+                appState.titans.push(...weekData.titans);
+            }
+        });
+
+        console.log("🔥 AppState mis à jour avec succès !");
+        console.log(`- Guerres en mémoire : ${Object.keys(appState.wars).length}`);
+        console.log(`- Lignes de héros : ${appState.heroes.length}`);
+        console.log(`- Lignes de titans : ${appState.titans.length}`);
+
+        if (statusEl) statusEl.innerText = '✅ Données Cloud chargées';
+
+		// 🔥 Remise à zéro / Initialisation sur la guerre la plus récente à chaque chargement Firebase
+        const keys = getSortedWarKeys();
+        if (keys.length > 0) {
+            // keys est trié par ordre croissant (ex: 202645, 202646, 202647)
+            // La plus récente est donc la DERNIÈRE du tableau (keys.length - 1)
+            appState.activeKey = keys[keys.length - 1];
+        } else {
+            appState.activeKey = null;
+        }
+
+        // Appel des fonctions de mise à jour de l'interface et du rendu
+        if (typeof updateNavigationUI === 'function') updateNavigationUI();
+        if (typeof updateDatabaseUI === 'function') updateDatabaseUI();
+        if (typeof renderDashboard === 'function') renderDashboard();
+                        
+    } catch (err) {
+        console.error("❌ Erreur lors du chargement Cloud :", err);
+        if (statusEl) statusEl.innerText = '❌ Erreur de chargement';
+        alert("Erreur de chargement : " + err.message);
+    }
+}
 
         function openAdminModal() {
             document.getElementById('adminModal').classList.remove('hidden');
