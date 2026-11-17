@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.83</title>
+    <title>Guild Wars Board - v1.84</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.83</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.84</span>
                 </h1>
-                <p class="text-xs text-slate-400">mise à jour des fonctions backup/restore pour le Cloud (admin)</p>
+                <p class="text-xs text-slate-400">mise à jour de l'import d'une guerre JSON (admin)</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -41,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.83)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.84)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -611,28 +611,64 @@ async function loadFromCloud(maxWeeks) {
             closeEnemyModal();
         }
 
-        function handleJSONWarImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const parsedData = JSON.parse(evt.target.result);
-                    const fileName = file.name;
-                    appState.wars[fileName] = parsedData;
-                    appState.activeKey = fileName;
-                    saveToLocalStorage();
-                    updateNavigationUI();
-                    renderDashboard();
-                    e.target.value = '';
-                    closeAdminModal();
-                    alert("Guerre importée avec succès !");
-                } catch(err) {
-                    alert("Erreur de lecture du JSON de guerre : " + err.message);
+// IMPORTE UN JSON DE GUERRE DES GUILDES
+async function handleJSONWarImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('globalStatus');
+    if (statusEl) statusEl.innerText = 'Import de la guerre en cours...';
+
+    const reader = new FileReader();
+    reader.onload = async function(evt) {
+        try {
+            const parsedWarData = JSON.parse(evt.target.result);
+            const fileName = file.name; // ex: "war_2026_47.json" ou autre
+
+            // 1. Déterminer la semaine (weekId) de cette guerre
+            // On utilise ta fonction getWeekKeyForWar qui gère le season_day ou la date
+            let weekId = getWeekKeyForWar(fileName, parsedWarData);
+          
+            // Petit fallback de sécurité si getWeekKeyForWar retourne null
+            if (!weekId) {
+                // On extrait l'année/semaine courante ou on demande une saisie, 
+                // mais en général getWeekKeyForWar gère le season_day du JSON.
+                throw new Error("Impossible de déterminer la semaine (season_day) de cette guerre.");
+            }
+
+            console.log(`🛡️ Guerre identifiée pour la semaine : ${weekId}`);
+
+            // 2. Sauvegarde dans le Cloud (Sous-collection weeks/{weekId})
+            // On stocke la guerre dans un objet structuré sous la clé du fichier ou un identifiant propre
+            const docRef = db.collection("wars").doc("my_guild").collection("weeks").doc(weekId);
+            
+            // On utilise { merge: true } pour ne pas écraser les autres guerres ou les héros/titans de cette même semaine
+            await docRef.set({
+                weekId: weekId,
+                wars: {
+                    [fileName]: parsedWarData
                 }
-            };
-            reader.readAsText(file);
+            }, { merge: true });
+
+            console.log("🔥 Guerre sauvegardée avec succès dans Firestore !");
+
+            // 3. Rechargement propre de l'application pour synchroniser l'UI et l'AppState
+            await reloadApplication();
+
+            // 4. Nettoyage et succès
+            e.target.value = '';
+            closeAdminModal();
+            if (statusEl) statusEl.innerText = '✅ Guerre importée';
+            alert("⚔️ Guerre importée et enregistrée dans le Cloud avec succès !");
+
+        } catch (err) {
+            console.error("❌ Erreur lors de l'import de la guerre :", err);
+            alert("Erreur de lecture ou d'enregistrement de la guerre : " + err.message);
+            if (statusEl) statusEl.innerText = '❌ Erreur import guerre';
         }
+    };
+    reader.readAsText(file);
+}
 
         async function importSmartClipboard() {
             if (!navigator.clipboard || !navigator.clipboard.readText) {
