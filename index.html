@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.90</title>
+    <title>Guild Wars Board - v1.91</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.90</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.91</span>
                 </h1>
-                <p class="text-xs text-slate-400">mise à jour de l'import de batailles via le clipboard (admin)</p>
+                <p class="text-xs text-slate-400">Trie l'historique des combats dans la modale de combat</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -41,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.90)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.91)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -1170,14 +1170,37 @@ function mergeUniqueRows(existingRows, newRows) {
                     </select>`;
                 }
 
-                let optionsHTML = historyList.map((h, idx) => {
+				// Fonction pour transformer "DD/MM HH:MM" en nombre comparable (ex: 14051703)
+                const convertCSVDateFormat = (str) => {
+                    if (!str) return 0;
+                    // On extrait uniquement les chiffres avec une regex
+                    let matches = str.match(/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+                    if (!matches) return 0;
+                    // On fabrique un entier YYYYMMDDHHMM (en supposant l'année courante ou arbitraire)
+                    let [, day, month, hour, min] = matches;
+                    return parseInt(`2026${month}${day}${hour}${min}`, 10);
+                };
+
+				// 🔄 TRI DU PLUS RÉCENT AU PLUS ANCIEN
+                const sortedHistory = [...historyList].sort((a, b) => {
+                    let strA = a.dateTimeFull || a['date time'] || '';
+                    let strB = b.dateTimeFull || b['date time'] || '';
+
+                    let timeA = convertCSVDateFormat(strA);
+                    let timeB = convertCSVDateFormat(strB);
+
+                    return timeB - timeA; // Du plus grand (récent) au plus petit (ancien)
+                });
+                
+                // On utilise sortedHistory à la place de historyList pour mapper les options
+                let optionsHTML = sortedHistory.map((h, idx) => {
                     let isSelected = (h.dateTimeFull === b.dateTimeFull && h.attackerName === b.attacker && String(h.points) === String(b.points)) ? 'selected' : '';
-                    return `<option value="${idx}" ${isSelected}>${h.date} - ${h.attackerName} (+${h.points} pts)</option>`;
+                    return `<option value="${idx}"${isSelected}>${h.dateTimeFull} - ${h.attackerName} (+${h.points} pts)</option>`;
                 }).join('');
 
                 return `
                     <select onchange="onSelectHistoryBattle(this.value)" class="w-full text-[11px] bg-slate-900 text-slate-200 border border-slate-800 rounded px-2 py-1 outline-none mt-2 focus:border-amber-500/50 cursor-pointer">
-                        <option value="" disabled>Historique (${historyList.length} attaque(s))...</option>
+                        <option value="" disabled>Historique (${sortedHistory.length} attaque(s))...</option>
                         ${optionsHTML}
                     </select>
                 `;
