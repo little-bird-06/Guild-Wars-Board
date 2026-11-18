@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.92</title>
+    <title>Guild Wars Board - v1.94</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,13 +16,13 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.92</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.94</span>
                 </h1>
-                <p class="text-xs text-slate-400">Ajoute la comparaison de combats</p>
+                <p class="text-xs text-slate-400">display UI in English</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-                <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
-                <! button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Panneau d'administration">
+                <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database ready</span>
+                <! button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700 shadow-md" title="Admin Panel">
                     <span>🔒</span> Admin
                 </button>
             </div>
@@ -30,19 +30,19 @@
 
         <!-- Barre de navigation rapide des guerres -->
         <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg flex items-center justify-between max-w-md mx-auto">
-            <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">◀ Guerre Préc.</button>
+            <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">◀ Prev. War</button>
             <div class="text-center flex-1 flex items-center justify-center gap-2">
                 <span id="warDateText" class="text-lg font-extrabold text-amber-400 tracking-wider">--/--</span>
-                <! button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
+                <! button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Delete this war">🗑️</button>
             </div>
-            <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">Guerre Suiv. ▶</button>
+            <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">Next War ▶</button>
         </div>
 
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.92)</div>
-                <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board is ready (v1.94)</div>
+                <p class="text-sm">Use the <span class="text-amber-400 font-bold">🔒 Admin</span> button at the top right to manage your data.</p>
             </div>
         </div>
     </div>
@@ -52,7 +52,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
                 <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
-                    <span>🔒</span> Panneau d'Administration
+                    <span>🔒</span> Admin Panel
                 </h3>
                 <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
             </div>
@@ -64,39 +64,39 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">⚔️</div>
-                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Import Guerre (JSON)</span>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Import War (JSON)</span>
                     </button>
 
                     <button onclick="importSmartClipboard()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-lg shadow">📋</div>
-                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-emerald-300 leading-tight">Coller batailles depuis le clipboard</span>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-emerald-300 leading-tight">Paste Battles from Clipboard</span>
                     </button>
 
                     <button onclick="document.getElementById('jsonRestoreInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-blue-400 flex items-center justify-center text-lg shadow">📥</div>
-                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Restore Données</span>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Restore Data</span>
                     </button>
 
                     <button onclick="exportGlobalBackup()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-lg shadow">📦</div>
-                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Backup Données</span>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 leading-tight">Backup Data</span>
                     </button>
 
                     <button onclick="exportAllBattlesCSV()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/50 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-blue-400 flex items-center justify-center text-lg shadow">💾</div>
-                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Export Batailles (CSV)</span>
+                        <span class="text-[11px] font-bold text-slate-200 group-hover:text-blue-300 leading-tight">Export Battles (CSV)</span>
                     </button>
 
                     <button onclick="resetDatabase()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-red-950/20 hover:bg-red-950/40 border border-red-900/50 hover:border-red-500 text-center transition cursor-pointer group h-24 shadow-md">
                         <div class="w-[45px] h-[45px] rounded-full bg-slate-950 border-2 border-red-500 flex items-center justify-center text-lg shadow animate-pulse">☢️</div>
-                        <span class="text-[11px] font-bold text-red-400 group-hover:text-red-300 leading-tight">Purger Base</span>
+                        <span class="text-[11px] font-bold text-red-400 group-hover:text-red-300 leading-tight">Purge Database</span>
                     </button>
                 </div>
 
                 <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl flex justify-between items-center text-xs font-mono">
-                    <span id="smartImportLog" class="text-slate-400">Prêt</span>
+                    <span id="smartImportLog" class="text-slate-400">Ready</span>
                     <div class="flex gap-4">
-                        <span id="heroMeta" class="text-blue-400">0 héros</span>
+                        <span id="heroMeta" class="text-blue-400">0 heroes</span>
                         <span id="titanMeta" class="text-purple-400">0 titans</span>
                     </div>
                 </div>
@@ -109,12 +109,12 @@
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
                 <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
-                    <span>🛡️</span> Choisir un adversaire
+                    <span>🛡️</span> Choose an Opponent
                 </h3>
                 <button onclick="closeEnemyModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-2 py-1 rounded cursor-pointer">✕</button>
             </div>
             <div class="p-3 border-b border-slate-800 bg-slate-950/30">
-                <input type="text" id="enemySearchInput" placeholder="Rechercher une guilde..." oninput="filterEnemyModalList()" class="w-full text-xs bg-slate-950 text-slate-200 border border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-amber-500/50">
+                <input type="text" id="enemySearchInput" placeholder="Search a guild..." oninput="filterEnemyModalList()" class="w-full text-xs bg-slate-950 text-slate-200 border border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-amber-500/50">
             </div>
             <div id="enemyModalList" class="p-3 overflow-y-auto space-y-1.5 flex-1"></div>
         </div>
@@ -124,7 +124,7 @@
     <div id="battleModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-3 border-b border-slate-800 flex justify-end items-center bg-slate-950/50">
-                <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-3 py-1 rounded cursor-pointer bg-slate-800 hover:bg-slate-700 transition">Fermer ✕</button>
+                <button onclick="closeBattleModal()" class="text-slate-400 hover:text-slate-200 text-sm font-bold px-3 py-1 rounded cursor-pointer bg-slate-800 hover:bg-slate-700 transition">Close ✕</button>
             </div>
             <div id="battleModalContent" class="p-6 overflow-x-auto overflow-y-auto space-y-4 flex-1"></div>
         </div>
@@ -181,8 +181,8 @@
                 const dash = document.getElementById('dashboard');
                 if (dash) {
                     dash.innerHTML = `<div class="bg-red-950/30 border border-red-900 p-6 rounded-xl text-center text-red-400">
-                        <h3 class="font-bold text-sm mb-1">Erreur de chargement des données</h3>
-                        <p class="text-xs">Ouvrez le panneau Admin (🔒) pour exporter ou réinitialiser vos données si nécessaire.</p>
+                        <h3 class="font-bold text-sm mb-1">Data loading error</h3>
+                        <p class="text-xs">Open the Admin panel (🔒) to export or reset your data if necessary.</p>
                     </div>`;
                 }
             }
@@ -257,7 +257,7 @@ async function importBackupFile(event) {
     if (!file) return;
 
     const statusEl = document.getElementById('globalStatus');
-    if (statusEl) statusEl.innerText = 'Migration stricte en cours...';
+    if (statusEl) statusEl.innerText = 'Migration in progress...';
 
     const reader = new FileReader();
     reader.onload = async function(e) {
@@ -329,12 +329,12 @@ async function importBackupFile(event) {
             
             await reloadApplication();
 
-            alert("🎉 Migration réussie ! Tes guerres (par season_day) et tes batailles CSV (par date DD/MM) sont parfaitement rangées.");
-            if (statusEl) statusEl.innerText = '✅ Migration Cloud terminée';
+            alert("🎉 Migration successful! Your wars (by season_day) and CSV battles (by DD/MM date) are neatly organized.");
+            if (statusEl) statusEl.innerText = '✅ Cloud migration complete';
 
         } catch (err) {
             console.error("❌ Erreur migration :", err);
-            alert("Erreur : " + err.message);
+            alert("Error: " + err.message);
         }
     };
     reader.readAsText(file);
@@ -344,7 +344,7 @@ async function importBackupFile(event) {
 async function loadFromCloud(maxWeeks) {
     console.log(`📥 Chargement des données depuis le Cloud (Limite: ${maxWeeks === null ? 'Illimitée' : maxWeeks} semaines)...`);
     const statusEl = document.getElementById('globalStatus');
-    if (statusEl) statusEl.innerText = 'Chargement des données depuis le Cloud...';
+    if (statusEl) statusEl.innerText = 'Loading data from Cloud...';
 
     try {
         let query = db.collection("wars")
@@ -361,7 +361,7 @@ async function loadFromCloud(maxWeeks) {
 
         if (snapshot.empty) {
             console.log("ℹ️ Aucune donnée trouvée dans le Cloud.");
-            if (statusEl) statusEl.innerText = '⚠️ Aucune donnée en ligne';
+            if (statusEl) statusEl.innerText = '⚠️ No online data';
             return;
         }
 
@@ -390,12 +390,12 @@ async function loadFromCloud(maxWeeks) {
         console.log(`- Lignes de héros : ${appState.heroes.length}`);
         console.log(`- Lignes de titans : ${appState.titans.length}`);
 
-        if (statusEl) statusEl.innerText = '✅ Données Cloud chargées';
+        if (statusEl) statusEl.innerText = '✅ Cloud data loaded';
                         
     } catch (err) {
         console.error("❌ Erreur lors du chargement depuis le Cloud :", err);
-        if (statusEl) statusEl.innerText = '❌ Erreur de chargement';
-        alert("Erreur de chargement : " + err.message);
+        if (statusEl) statusEl.innerText = '❌ Loading error';
+        alert("Loading error: " + err.message);
     }
 }
 
@@ -417,7 +417,7 @@ async function loadFromCloud(maxWeeks) {
 
         async function exportGlobalBackup() {
     		const statusEl = document.getElementById('globalStatus');
-    		if (statusEl) statusEl.innerText = 'Préparation du backup complet...';
+    		if (statusEl) statusEl.innerText = 'Preparing full backup...';
 
     		// 1. On charge TOUTES les semaines du Cloud dans AppState sans restriction
     		await loadFromCloud(null);
@@ -435,7 +435,7 @@ async function loadFromCloud(maxWeeks) {
     		// et assurer que l'activeKey pointe sur les memes données
     		await loadFromCloud(MAX_HISTORY_WEEKS);
 
-    		if (statusEl) statusEl.innerText = '✅ Backup complet exporté';
+    		if (statusEl) statusEl.innerText = '✅ Full backup exported';
     		console.log("📦 Backup global exporté avec succès !");
 		}
 
@@ -460,7 +460,7 @@ async function loadFromCloud(maxWeeks) {
             const hasHeroes = appState.heroes && appState.heroes.length > 0;
             const hasTitans = appState.titans && appState.titans.length > 0;
             if (!hasHeroes && !hasTitans) {
-                alert("Aucune donnée de batailles en base à exporter.");
+                alert("No battle data in database to export.");
                 return;
             }
             if (hasHeroes) exportCSV('hero');
@@ -470,11 +470,11 @@ async function loadFromCloud(maxWeeks) {
         }
 
         function resetDatabase() {
-            if (confirm("⚠️ ATTENTION : Veux-tu vraiment purger toute la base de données locale ? Cette action est irréversible !")) {
+            if (confirm("⚠️ WARNING: Do you really want to purge the entire local database? This action is irreversible!")) {
                 localStorage.removeItem('hw_gvg_db');
                 appState = { wars: {}, activeKey: null, heroes: [], titans: [], currentView: 'attacks' };
                 const logEl = document.getElementById('smartImportLog');
-                if (logEl) logEl.innerText = 'Base purgée';
+                if (logEl) logEl.innerText = 'Database purged';
                 updateNavigationUI();
                 updateDatabaseUI();
                 renderDashboard();
@@ -484,7 +484,7 @@ async function loadFromCloud(maxWeeks) {
 
         function deleteActiveWar() {
             if (!appState.activeKey || !appState.wars[appState.activeKey]) return;
-            if (confirm(`Voulez-vous supprimer les données de la guerre sélectionnée ?`)) {
+            if (confirm(`Do you want to delete the selected war data?`)) {
                 delete appState.wars[appState.activeKey];
                 const keys = getSortedWarKeys();
                 appState.activeKey = keys.length > 0 ? keys[0] : null;
@@ -499,7 +499,7 @@ async function loadFromCloud(maxWeeks) {
         }
 
         function getEnemyName(warData) {
-            return warData.enemyName || warData.data?.enemyClan?.title || warData.enemyClanName || "Guilde Adverse";
+            return warData.enemyName || warData.data?.enemyClan?.title || warData.enemyClanName || "Enemy Guild";
         }
 
         function switchView(view) {
@@ -587,7 +587,7 @@ async function loadFromCloud(maxWeeks) {
         function renderEnemyModalList(list) {
             const container = document.getElementById('enemyModalList');
             if (list.length === 0) {
-                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">Aucun adversaire trouvé.</div>`;
+                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">No opponent found.</div>`;
                 return;
             }
 
@@ -595,7 +595,7 @@ async function loadFromCloud(maxWeeks) {
                 <div onclick="selectEnemyWar('${e.latestKey}')" class="flex justify-between items-center bg-slate-950 hover:bg-amber-950/20 border border-slate-800 hover:border-amber-500/40 p-3 rounded-xl cursor-pointer transition">
                     <div>
                         <div class="font-bold text-slate-200 text-xs">${e.name}</div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">${e.count} affrontement(s) enregistré(s)</div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">${e.count} recorded clash(es)</div>
                     </div>
                     <div class="text-right">
                         <span class="text-[11px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold">
@@ -620,7 +620,7 @@ async function importGuildWarFile(e) {
     if (!file) return;
 
     const statusEl = document.getElementById('globalStatus');
-    if (statusEl) statusEl.innerText = 'Import de la guerre en cours...';
+    if (statusEl) statusEl.innerText = 'Importing war...';
 
     const reader = new FileReader();
     reader.onload = async function(evt) {
@@ -636,7 +636,7 @@ async function importGuildWarFile(e) {
             if (!weekId) {
                 // On extrait l'année/semaine courante ou on demande une saisie, 
                 // mais en général getWeekKeyForWar gère le season_day du JSON.
-                throw new Error("Impossible de déterminer la semaine (season_day) de cette guerre.");
+                throw new Error("Unable to determine the week (season_day) for this war.");
             }
 
             console.log(`🛡️ Guerre identifiée pour la semaine : ${weekId}`);
@@ -661,13 +661,13 @@ async function importGuildWarFile(e) {
             // 4. Nettoyage et succès
             e.target.value = '';
             closeAdminModal();
-            if (statusEl) statusEl.innerText = '✅ Guerre importée';
-            alert("⚔️ Guerre importée et enregistrée dans le Cloud avec succès !");
+            if (statusEl) statusEl.innerText = '✅ War imported';
+            alert("⚔️ War imported and saved to the Cloud successfully!");
 
         } catch (err) {
             console.error("❌ Erreur lors de l'import de la guerre :", err);
-            alert("Erreur de lecture ou d'enregistrement de la guerre : " + err.message);
-            if (statusEl) statusEl.innerText = '❌ Erreur import guerre';
+            alert("Error reading or saving war: " + err.message);
+            if (statusEl) statusEl.innerText = '❌ War import error';
         }
     };
     reader.readAsText(file);
@@ -717,18 +717,18 @@ async function importGuildWarFile(e) {
 		// handler function when admin clicks on PASTE button (import CSV battles from clipboard)
         async function importSmartClipboard() {
             if (!navigator.clipboard || !navigator.clipboard.readText) {
-                alert("Votre navigateur ne permet pas l'accès automatique au presse-papier.");
+                alert("Your browser does not allow automatic clipboard access.");
                 return;
             }
             try {
                 const text = await navigator.clipboard.readText();
                 if (!text || text.trim().length === 0) {
-                    alert("Le presse-papier est vide.");
+                    alert("The clipboard is empty.");
                     return;
                 }
                 processSmartClipboard(text);
             } catch (err) {
-                alert("Impossible de lire le presse-papier : " + err.message);
+                alert("Unable to read clipboard: " + err.message);
             }
         }
 
@@ -756,14 +756,14 @@ async function importGuildWarFile(e) {
             		processCSVTextParsed(rows, targetType);
                 },
                 error: function(err) {
-                    alert("Erreur de détection CSV : " + err.message);
+                    alert("CSV detection error: " + err.message);
                 }
             });
         }
 
 async function processCSVTextParsed(incomingRows, type) {
     const statusEl = document.getElementById('globalStatus');
-    if (statusEl) statusEl.innerText = `Import des batailles de ${type} dans le Cloud...`;
+    if (statusEl) statusEl.innerText = `Importing ${type} battles to the Cloud...`;
 
     try {
         // 1. Grouper les lignes entrantes par semaine (weekId) en se basant sur leur date
@@ -779,8 +779,8 @@ async function processCSVTextParsed(incomingRows, type) {
 
         let weeksToUpdate = Object.keys(rowsByWeek);
         if (weeksToUpdate.length === 0) {
-            alert("Aucune date valide trouvée dans les données du presse-papier pour les ranger par semaine.");
-            if (statusEl) statusEl.innerText = 'Database prête';
+            alert("No valid date found in clipboard data to sort by week.");
+            if (statusEl) statusEl.innerText = 'Database ready';
             return;
         }
 
@@ -820,16 +820,16 @@ async function processCSVTextParsed(incomingRows, type) {
 
         const logEl = document.getElementById('smartImportLog');
         if (logEl) {
-            logEl.innerText = `✅ Batailles de ${type.toUpperCase()} enregistrées dans le Cloud`;
+            logEl.innerText = `✅ ${type.toUpperCase()} battles saved to the Cloud`;
         }
 
-        if (statusEl) statusEl.innerText = '✅ Import Cloud réussi';
-        alert(`🎉 Batailles de ${type} importées et sauvegardées dans le Cloud avec succès !`);
+        if (statusEl) statusEl.innerText = '✅ Cloud import successful';
+        alert(`🎉 ${type} battles imported and saved to the Cloud successfully!`);
 
     } catch (err) {
         console.error("❌ Erreur lors de l'import CSV Cloud :", err);
-        alert("Erreur lors de l'enregistrement des batailles : " + err.message);
-        if (statusEl) statusEl.innerText = '❌ Erreur import CSV';
+        alert("Error saving battles: " + err.message);
+        if (statusEl) statusEl.innerText = '❌ CSV import error';
     }
 }
 
@@ -857,7 +857,7 @@ function mergeUniqueRows(existingRows, newRows) {
         function updateDatabaseUI() {
             const hMeta = document.getElementById('heroMeta');
             const tMeta = document.getElementById('titanMeta');
-            if (hMeta) hMeta.innerText = `${appState.heroes.length} héros`;
+            if (hMeta) hMeta.innerText = `${appState.heroes.length} heroes`;
             if (tMeta) tMeta.innerText = `${appState.titans.length} titans`;
         }
 
@@ -1010,11 +1010,11 @@ function mergeUniqueRows(existingRows, newRows) {
                         indPet: pInfo.name !== '###' ? pInfo.name : null,
                         isPet: false,
                         isTitan: false,
-                        label: `Héros ${i+1}`
+                        label: `Hero ${i+1}`
                     };
                 });
 
-                let petSlot = { ...teamData.pet, isPet: true, isTitan: false, label: 'Familier' };
+                let petSlot = { ...teamData.pet, isPet: true, isTitan: false, label: 'Pet' };
                 if (isAttacker) {
                     slotsArray = [petSlot, ...mappedHeroes];
                 } else {
@@ -1029,7 +1029,7 @@ function mergeUniqueRows(existingRows, newRows) {
                         <div class="flex flex-col gap-1 w-full items-center my-1">
                             ${t.skill1 ? `
                                 <div class="flex flex-col items-center">
-                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Niv.${t.skill1.level}">
+                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Lvl.${t.skill1.level}">
                                         <img src="titans/fusion/${t.skill1.code}.png" width="100" height="100" alt="${t.skill1.code}" class="w-full h-full object-cover" onerror="this.style.display='none';">
                                     </div>
                                     <span class="text-[9px] font-bold text-amber-300 leading-none mt-0.5">${t.skill1.levelRoman}</span>
@@ -1037,7 +1037,7 @@ function mergeUniqueRows(existingRows, newRows) {
                             ` : ''}
                             ${t.skill2 ? `
                                 <div class="flex flex-col items-center">
-                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Niv.${t.skill2.level}">
+                                    <div class="relative w-[32px] h-[32px] rounded-full bg-slate-950 border border-purple-400/50 overflow-hidden shadow" title="Skill Lvl.${t.skill2.level}">
                                         <img src="titans/fusion/${t.skill2.code}.png" width="100" height="100" alt="${t.skill2.code}" class="w-full h-full object-cover" onerror="this.style.display='none';">
                                     </div>
                                     <span class="text-[9px] font-bold text-amber-300 leading-none mt-0.5">${t.skill2.levelRoman}</span>
@@ -1084,7 +1084,7 @@ function mergeUniqueRows(existingRows, newRows) {
                                 </div>
 
                                 ${slot.indPet ? `
-                                    <div class="absolute -top-3 -right-3 w-[30px] h-[30px] rounded-full bg-slate-950 border-2 border-amber-400 overflow-hidden shadow-xl z-30" title="Familier : ${slot.indPet}">
+                                    <div class="absolute -top-3 -right-3 w-[30px] h-[30px] rounded-full bg-slate-950 border-2 border-amber-400 overflow-hidden shadow-xl z-30" title="Pet: ${slot.indPet}">
                                         <img src="${petAvatarUrl}" width="80" height="80" alt="${slot.indPet}" class="w-full h-full object-cover" onerror="this.style.display='none';">
                                     </div>
                                 ` : ''}
@@ -1115,7 +1115,7 @@ function mergeUniqueRows(existingRows, newRows) {
                         datePart = `${matchDate[1]}/${matchDate[2]}`;
                     }
 
-                    let attName = row['att name'] || row['attacker name'] || 'Inconnu';
+                    let attName = row['att name'] || row['attacker name'] || 'Unknown';
                     let pts = row['points'] || '0';
 
                     history.push({
@@ -1166,7 +1166,7 @@ function mergeUniqueRows(existingRows, newRows) {
             function renderHistorySelect(historyList) {
                 if (!historyList || historyList.length === 0) {
                     return `<select class="w-full text-[11px] bg-slate-900 text-slate-400 border border-slate-800 rounded px-2 py-1 outline-none mt-2 cursor-not-allowed" disabled>
-                        <option>Aucun historique d'attaque</option>
+                        <option>No attack history</option>
                     </select>`;
                 }
 
@@ -1200,7 +1200,7 @@ function mergeUniqueRows(existingRows, newRows) {
 
                 return `
                     <select onchange="onSelectHistoryBattle(this.value)" class="w-full text-[11px] bg-slate-900 text-slate-200 border border-slate-800 rounded px-2 py-1 outline-none mt-2 focus:border-amber-500/50 cursor-pointer">
-                        <option value="" disabled>Historique (${sortedHistory.length} attaque(s))...</option>
+                        <option value="" disabled>History (${sortedHistory.length} attack(s))...</option>
                         ${optionsHTML}
                     </select>
                 `;
@@ -1238,8 +1238,8 @@ function mergeUniqueRows(existingRows, newRows) {
                     </div>
                 </div>
 
-                <!-- 2. BLOC CENTRE : Le sélecteur d'historique -->
-                <div class="w-full">
+				<!-- 2. BLOC CENTRE : Le sélecteur d'historique ajusté au contenu -->
+                <div class="flex justify-center w-full">
                     ${renderHistorySelect(defenderAttacksHistory)}
                 </div>
 
@@ -1301,8 +1301,8 @@ function mergeUniqueRows(existingRows, newRows) {
             const attTotemSkills = selectedRow['A flag desc/Totem skills'] || selectedRow['att totem skills'] || '';
             const defTotem = selectedRow['D flag/totem'] || selectedRow['def totem'] || '';
             const defTotemSkills = selectedRow['D flag desc/Totem skills'] || selectedRow['def totem skills'] || '';
-            const attackerName = selectedRow['att name'] || selectedRow['attacker name'] || selectedRow['attacker id'] || 'Inconnu';
-            const defenderName = selectedRow['def name'] || selectedRow['defender id'] || 'Inconnu';
+            const attackerName = selectedRow['att name'] || selectedRow['attacker name'] || selectedRow['attacker id'] || 'Unknown';
+            const defenderName = selectedRow['def name'] || selectedRow['defender id'] || 'Unknown';
 
             // Utilisation du même design en pleine largeur que la boîte principale, avec une bordure ambrée distinctive
             container.innerHTML = `
@@ -1414,7 +1414,7 @@ function mergeUniqueRows(existingRows, newRows) {
         function formatPower(val) {
             let num = parseInt(val);
             if (isNaN(num) || num === 0) return val;
-            return num.toLocaleString('fr-FR');
+            return num.toLocaleString('en-US');
         }
 
         function extractTimeOnly(dateTimeStr) {
@@ -1425,9 +1425,9 @@ function mergeUniqueRows(existingRows, newRows) {
 
         function formatLoginDate(tsVal) {
             let num = Number(tsVal);
-            if (isNaN(num) || num <= 0) return 'Inconnue';
+            if (isNaN(num) || num <= 0) return 'Unknown';
             const date = new Date(num > 1e12 ? num : num * 1000);
-            if (isNaN(date.getTime())) return 'Inconnue';
+            if (isNaN(date.getTime())) return 'Unknown';
             const dd = String(date.getUTCDate()).padStart(2, '0');
             const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
             const yyyy = date.getUTCFullYear();
@@ -1440,23 +1440,23 @@ function mergeUniqueRows(existingRows, newRows) {
             if (!dash) return;
 
             if (!appState.activeKey || !appState.wars[appState.activeKey]) {
-                if (statusEl) statusEl.innerText = `✅ DB active : 0 guerre(s) | ${appState.heroes.length + appState.titans.length} tot. batailles`;
+                if (statusEl) statusEl.innerText = `✅ Active DB: 0 war(s) | ${appState.heroes.length + appState.titans.length} tot. battles`;
                 dash.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                        <div class="text-xl font-medium text-slate-300 mb-2">Aucune guerre active</div>
-                        <p class="text-sm">Cliquez sur <span class="text-amber-400 font-bold">🔒 Admin</span> pour importer une guerre.</p>
+                        <div class="text-xl font-medium text-slate-300 mb-2">No active war</div>
+                        <p class="text-sm">Click <span class="text-amber-400 font-bold">🔒 Admin</span> to import a war.</p>
                     </div>
                 `;
                 return;
             }
 
-            if (statusEl) statusEl.innerText = `✅ DB active : ${Object.keys(appState.wars).length} guerre(s) | ${appState.heroes.length + appState.titans.length} tot. batailles`;
+            if (statusEl) statusEl.innerText = `✅ Active DB: ${Object.keys(appState.wars).length} war(s) | ${appState.heroes.length + appState.titans.length} tot. battles`;
 
             const data = appState.wars[appState.activeKey];
             const enemyName = getEnemyName(data);
             const enemySlots = data.data?.enemySlots || {};
             const ourSlots = data.data?.ourSlots || {};
-            const ourClanName = data.data?.ourClan?.title || "Notre Clan";
+            const ourClanName = data.data?.ourClan?.title || "Our Guild";
             const maxAttacks = 30;
             const warDateObj = extractDateForWar(appState.activeKey, data);
             let warDateJs = warDateObj.iso ? new Date(warDateObj.iso + 'T00:00:00Z') : new Date();
@@ -1533,7 +1533,7 @@ function mergeUniqueRows(existingRows, newRows) {
                             }
 
                             inactiveMap.set(uId, {
-                                name: sInfo.user.name || 'Inconnu',
+                                name: sInfo.user.name || 'Unknown',
                                 clan: clanTitle,
                                 daysInactive: daysInactive,
                                 lastLogin: formatLoginDate(tsVal)
@@ -1578,8 +1578,8 @@ function mergeUniqueRows(existingRows, newRows) {
                                 let bId = `atk_${battleCounter}`;
                                 let bObj = {
                                     id: bId,
-                                    attacker: row['att name'] || attId || 'Inconnu',
-                                    defender: row['def name'] || defId || 'Inconnu',
+                                    attacker: row['att name'] || attId || 'Unknown',
+                                    defender: row['def name'] || defId || 'Unknown',
                                     attId: attId,
                                     defId: defId,
                                     attPower: formatPower(row['att power'] || row['attacker power'] || row['power'] || 0),
@@ -1607,8 +1607,8 @@ function mergeUniqueRows(existingRows, newRows) {
                                 let bId = `def_${battleCounter}`;
                                 let bObj = {
                                     id: bId,
-                                    attacker: row['att name'] || attId || 'Inconnu',
-                                    defender: row['def name'] || defId || 'Inconnu',
+                                    attacker: row['att name'] || attId || 'Unknown',
+                                    defender: row['def name'] || defId || 'Unknown',
                                     attId: attId,
                                     defId: defId,
                                     attPower: formatPower(row['att power'] || row['attacker power'] || row['power'] || 0),
@@ -1637,7 +1637,7 @@ function mergeUniqueRows(existingRows, newRows) {
                 const activeTitanMap = isDefenseMode ? ourTitanMap : enemyTitanMap;
                 const activeSlotsTarget = isDefenseMode ? ourSlots : enemySlots;
 
-                collectRows(appState.heroes, activeHeroMap, {}, 'Héros');
+                collectRows(appState.heroes, activeHeroMap, {}, 'Hero');
                 collectRows(appState.titans, {}, activeTitanMap, 'Titan');
 
                 let attacksBySlot = {};
@@ -1694,13 +1694,13 @@ function mergeUniqueRows(existingRows, newRows) {
                         let fName = slotToFort[sId];
                         let dummyAtk = {
                             id: bId,
-                            attacker: "Sans défense",
+                            attacker: "No defense",
                             defender: slotInfo?.user?.name || `Slot ${sId}`,
                             attPower: "",
                             defPower: "",
                             slot: sId,
                             points: pointsVal,
-                            type: sId >= 8 && sId <= 24 ? "Titan" : "Héros",
+                            type: sId >= 8 && sId <= 24 ? "Titan" : "Hero",
                             timeOnly: "",
                             dateTimeFull: "",
                             cumulBefore: 0,
@@ -1776,9 +1776,9 @@ function mergeUniqueRows(existingRows, newRows) {
 
             dash.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-lg hover:border-amber-500/50 transition cursor-pointer group" onclick="openEnemyModal()" title="Cliquez pour choisir un adversaire">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-lg hover:border-amber-500/50 transition cursor-pointer group" onclick="openEnemyModal()" title="Click to choose an opponent">
                         <div class="text-xs text-slate-400 uppercase tracking-wider mb-1 flex justify-between items-center">
-                            <span>Adversaire (Changer 🔍)</span>
+                            <span>Opponent (Change 🔍)</span>
                             ${hasMultipleEnemyWars ? `<span class="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded font-mono">${enemyWarIndex + 1}/${enemyWarKeys.length}</span>` : ''}
                         </div>
                         <div class="flex items-center justify-between gap-1 my-1">
@@ -1786,24 +1786,24 @@ function mergeUniqueRows(existingRows, newRows) {
                             <div class="text-base font-bold text-amber-400 group-hover:text-amber-300 truncate px-1 text-center" title="${enemyName}">${enemyName}</div>
                             <button onclick="event.stopPropagation(); navigateEnemyWar(1)" ${!hasMultipleEnemyWars || enemyWarIndex === enemyWarKeys.length - 1 ? 'disabled class="opacity-20 cursor-not-allowed text-xs text-slate-500 p-1"' : 'class="text-xs text-amber-400 hover:text-amber-300 font-bold p-1 cursor-pointer transition"'}>▶</button>
                         </div>
-                        <div class="text-[10px] text-slate-500 text-center">${hasMultipleEnemyWars ? 'Affrontements multiples' : 'Affrontement unique'}</div>
+                        <div class="text-[10px] text-slate-500 text-center">${hasMultipleEnemyWars ? 'Multiple clashes' : 'Single clash'}</div>
                     </div>
 
                     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
-                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Nos Attaques</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Our Attacks</div>
                         <div class="text-lg font-bold text-cyan-400">${attackData.validCount} / ${maxAttacks}</div>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
-                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Notre Score Final</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Our Final Score</div>
                         <div class="text-xl ${ourScoreColor}">${ourScore} pts</div>
                     </div>
 
                     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
-                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Attaques Adverses</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Enemy Attacks</div>
                         <div class="text-lg font-bold text-orange-400">${defenseData.validCount} / ${maxAttacks}</div>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg flex flex-col justify-center">
-                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Score Adverse Final</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Enemy Final Score</div>
                         <div class="text-xl ${enemyScoreColor}">${enemyScore} pts</div>
                     </div>
                 </div>
@@ -1811,14 +1811,14 @@ function mergeUniqueRows(existingRows, newRows) {
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-4">
                     <div class="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-3">
                         <h2 class="text-base font-bold text-slate-200">
-                            Détail des Fortifications <span class="text-xs font-normal text-slate-400 ml-2">(Cliquez sur une ligne pour voir les vignettes)</span>
+                            Fortifications Details <span class="text-xs font-normal text-slate-400 ml-2">(Click a row to view battle lineup)</span>
                         </h2>
                         <div class="inline-flex bg-slate-950 p-1 rounded-lg border border-slate-800">
                             <button onclick="switchView('attacks')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition cursor-pointer ${appState.currentView === 'attacks' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
-                                ⚔️ Attaques
+                                ⚔️ Attacks
                             </button>
                             <button onclick="switchView('defenses')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition cursor-pointer ${appState.currentView === 'defenses' ? 'bg-rose-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
-                                🛡️ Défenses
+                                🛡️ Defenses
                             </button>
                         </div>
                     </div>
@@ -1832,11 +1832,11 @@ function mergeUniqueRows(existingRows, newRows) {
                                         <span class="text-xs text-slate-500 ml-2">(Slots: ${f.slots.join(', ')})</span>
                                     </div>
                                     <span class="text-xs px-2 py-0.5 rounded font-semibold ${f.allWon ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}">
-                                        ${f.allWon ? `Validée (+${f.bonus} pts)` : `Bonus: +${f.bonus} pts`}
+                                        ${f.allWon ? `Captured (+${f.bonus} pts)` : `Bonus: +${f.bonus} pts`}
                                     </span>
                                 </div>
                                 <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
-                                    ${f.attacks.length === 0 ? `<div class="text-xs text-slate-500 italic py-1">Aucune bataille enregistrée pour cette date.</div>` : 
+                                    ${f.attacks.length === 0 ? `<div class="text-xs text-slate-500 italic py-1">No battle recorded for this date.</div>` : 
                                         f.attacks.map(atk => {
                                             if (atk.isEmptySlot) {
                                                 const pointsColorClass = atk.points > 0 ? 'text-emerald-400' : 'text-slate-500';
@@ -1844,7 +1844,7 @@ function mergeUniqueRows(existingRows, newRows) {
                                                     <div class="flex justify-between items-center text-xs bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-800/40 opacity-75">
                                                         <div class="flex items-center gap-2">
                                                             <span class="font-bold text-slate-500 bg-slate-950 border border-slate-800 px-1.5 py-0.5 rounded">S${atk.slot}</span>
-                                                            <span class="text-slate-400 italic">Sans défense</span>
+                                                            <span class="text-slate-400 italic">No defense</span>
                                                         </div>
                                                         <span class="font-mono font-bold ${pointsColorClass}">+${atk.points}</span>
                                                     </div>
@@ -1878,7 +1878,7 @@ function mergeUniqueRows(existingRows, newRows) {
 
                                                 <div class="flex items-center gap-2 self-end sm:self-auto">
                                                     <span class="text-[10px] px-1.5 py-0.5 rounded ${!isTitanBattle ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}">${atk.type}</span>
-                                                    <span class="font-mono font-bold ${pointsColorClass} text-sm" title="Cumul slot : ${atk.cumulAfter}/20 pts">+${atk.points}</span>
+                                                    <span class="font-mono font-bold ${pointsColorClass} text-sm" title="Slot total: ${atk.cumulAfter}/20 pts">+${atk.points}</span>
                                                 </div>
                                             </div>
                                         `;}).join('')}
@@ -1892,12 +1892,12 @@ function mergeUniqueRows(existingRows, newRows) {
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-3">
                         <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                             <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
-                                <span>💤</span> Inactifs : ${ourClanName}
+                                <span>💤</span> Inactive: ${ourClanName}
                             </h3>
-                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${ourInactives.length} joueur(s)</span>
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${ourInactives.length} player(s)</span>
                         </div>
                         <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                            ${ourInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">Aucun inactif détecté (tous ont attaqué) !</div>` :
+                            ${ourInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">No inactive players detected (everyone attacked)!</div>` :
                                 ourInactives.map(p => `
                                     <div class="flex justify-between items-center text-xs bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/60">
                                         <div class="flex items-center gap-2">
@@ -1905,7 +1905,7 @@ function mergeUniqueRows(existingRows, newRows) {
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <span class="text-[11px] text-slate-400">${p.clan}</span>
-                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} jours (${p.lastLogin})</span>
+                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} days (${p.lastLogin})</span>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -1915,12 +1915,12 @@ function mergeUniqueRows(existingRows, newRows) {
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-3">
                         <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                             <h3 class="text-sm font-bold text-orange-400 flex items-center gap-2">
-                                <span>💤</span> Inactifs : ${enemyName}
+                                <span>💤</span> Inactive: ${enemyName}
                             </h3>
-                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${enemyInactives.length} joueur(s)</span>
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">${enemyInactives.length} player(s)</span>
                         </div>
                         <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                            ${enemyInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">Aucun inactif détecté (tous ont attaqué) !</div>` :
+                            ${enemyInactives.length === 0 ? `<div class="text-xs text-emerald-400/80 italic py-2 text-center">No inactive players detected (everyone attacked)!</div>` :
                                 enemyInactives.map(p => `
                                     <div class="flex justify-between items-center text-xs bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/60">
                                         <div class="flex items-center gap-2">
@@ -1928,7 +1928,7 @@ function mergeUniqueRows(existingRows, newRows) {
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <span class="text-[11px] text-slate-400">${p.clan}</span>
-                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} jours (${p.lastLogin})</span>
+                                            <span class="text-[11px] font-mono text-amber-400 font-bold bg-amber-950/30 px-2 py-0.5 rounded">${p.daysInactive} days (${p.lastLogin})</span>
                                         </div>
                                     </div>
                                 `).join('')}
