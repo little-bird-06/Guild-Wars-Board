@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.91</title>
+    <title>Guild Wars Board - v1.92</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.91</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.92</span>
                 </h1>
-                <p class="text-xs text-slate-400">Trie l'historique des combats dans la modale de combat</p>
+                <p class="text-xs text-slate-400">Ajoute la comparaison de combats</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -41,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.91)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.92)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -1206,7 +1206,9 @@ function mergeUniqueRows(existingRows, newRows) {
                 `;
             }
 
+			// Structure en 3 blocs verticaux distincts et en pleine largeur
             contentEl.innerHTML = `
+                <!-- 1. BLOC HAUT : Le combat de référence du slot -->
                 <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800 gap-4 overflow-x-auto text-xs">
                     <div class="flex flex-col items-center justify-center min-w-[70px] border-r border-slate-800 pr-4">
                         <span class="font-mono font-bold text-slate-200 text-sm">${datePart}</span>
@@ -1219,7 +1221,6 @@ function mergeUniqueRows(existingRows, newRows) {
                             <span class="font-mono text-cyan-300 font-bold bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded shadow-sm">${b.attPower || '0'}</span>
                         </div>
                         ${renderTeamGrid(b.rawAttTeam, true, isTitan, b.attTotem, b.attTotemSkills, b.attIndPets)}
-                        ${renderHistorySelect(defenderAttacksHistory)}
                     </div>
 
                     <span class="text-slate-600 font-bold text-sm px-2">VS</span>
@@ -1236,46 +1237,106 @@ function mergeUniqueRows(existingRows, newRows) {
                         <span class="font-mono font-black text-xl ${pointsColorClass}">+${b.points}</span>
                     </div>
                 </div>
-            `;
+
+                <!-- 2. BLOC CENTRE : Le sélecteur d'historique -->
+                <div class="w-full">
+                    ${renderHistorySelect(defenderAttacksHistory)}
+                </div>
+
+                <!-- 3. BLOC BAS : Le conteneur de comparaison en pleine largeur -->
+                <div id="comparisonContainer" class="w-full"></div>
+            `;            
+            
         }
 
-        function onSelectHistoryBattle(indexStr) {
-            let idx = parseInt(indexStr);
-            if (isNaN(idx) || !window._currentBattleModalContext) return;
+		function onSelectHistoryBattle(indexStr) {
+            let idx = parseInt(indexStr, 10);
+            const container = document.getElementById('comparisonContainer');
+            if (!container || isNaN(idx) || !window._currentBattleModalContext) return;
 
             const ctx = window._currentBattleModalContext;
             const historyList = getDefenderAttacksHistory(ctx.defId, ctx.isTitan);
-            if (!historyList[idx]) return;
+            
+            const convertCSVDateFormat = (str) => {
+                if (!str) return 0;
+                let matches = str.match(/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+                if (!matches) return 0;
+                let [, day, month, hour, min] = matches;
+                return parseInt(`2026${month}${day}${hour}${min}`, 10);
+            };
 
-            const selectedRow = historyList[idx].rawRow;
+            const sortedHistory = [...historyList].sort((a, b) => {
+                return convertCSVDateFormat(b.dateTimeFull || b['date time']) - convertCSVDateFormat(a.dateTimeFull || a['date time']);
+            });
+
+            const selectedItem = sortedHistory[idx];
+            if (!selectedItem || !selectedItem.rawRow) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const selectedRow = selectedItem.rawRow;
             const dateTime = selectedRow['date time'] || '';
             const pts = parseInt(selectedRow['points'] || 0);
 
-            let updatedBattleObj = {
-                id: ctx.battleId,
-                attacker: selectedRow['att name'] || selectedRow['attacker id'] || 'Inconnu',
-                defender: selectedRow['def name'] || selectedRow['defender id'] || 'Inconnu',
-                attId: String(selectedRow['attacker id'] || ''),
-                defId: String(selectedRow['defender id'] || ''),
-                attPower: formatPower(selectedRow['att power'] || selectedRow['attacker power'] || selectedRow['power'] || 0),
-                defPower: formatPower(selectedRow['def power'] || selectedRow['defender power'] || selectedRow['target power'] || 0),
-                slot: 0, 
-                points: isNaN(pts) ? 0 : pts,
-                type: ctx.isTitan ? 'Titan' : 'Héros',
-                timeOnly: extractTimeOnly(dateTime),
-                dateTimeFull: dateTime,
-                rawAttTeam: selectedRow['att team'] || selectedRow['attacker team'] || '',
-                rawDefTeam: selectedRow['team'] || selectedRow['defender team'] || selectedRow['target team'] || '',
-                attIndPets: selectedRow['attacker pet'] || selectedRow['att pet'] || selectedRow['attacker pets'] || '',
-                defIndPets: selectedRow['defender pet'] || selectedRow['def pet'] || selectedRow['defender pets'] || '',
-                attTotem: selectedRow['A flag/totem'] || selectedRow['att totem'] || '',
-                attTotemSkills: selectedRow['A flag desc/Totem skills'] || selectedRow['att totem skills'] || '',
-                defTotem: selectedRow['D flag/totem'] || selectedRow['def totem'] || '',
-                defTotemSkills: selectedRow['D flag desc/Totem skills'] || selectedRow['def totem skills'] || '',
-                isSuccessful: pts >= 20 || pts > 0
-            };
+            let datePart = '--/--';
+            let timePart = '--:--';
+            if (dateTime) {
+                let matchDate = dateTime.match(/(\d{2})[-/](\d{2})/);
+                if (matchDate) datePart = `${matchDate[1]}/${matchDate[2]}`;
+                let matchTime = dateTime.match(/(\d{2}:\d{2})/);
+                if (matchTime) timePart = matchTime[1];
+            }
 
-            renderBattleModalContent(updatedBattleObj);
+            const isTitan = ctx.isTitan;
+            const pointsColorClass = 'text-white';
+
+            const attPower = formatPower(selectedRow['att power'] || selectedRow['attacker power'] || selectedRow['power'] || 0);
+            const defPower = formatPower(selectedRow['def power'] || selectedRow['defender power'] || selectedRow['target power'] || 0);
+            const rawAttTeam = selectedRow['att team'] || selectedRow['attacker team'] || '';
+            const rawDefTeam = selectedRow['team'] || selectedRow['defender team'] || selectedRow['target team'] || '';
+            const attIndPets = selectedRow['attacker pet'] || selectedRow['att pet'] || selectedRow['attacker pets'] || '';
+            const defIndPets = selectedRow['defender pet'] || selectedRow['def pet'] || selectedRow['defender pets'] || '';
+            const attTotem = selectedRow['A flag/totem'] || selectedRow['att totem'] || '';
+            const attTotemSkills = selectedRow['A flag desc/Totem skills'] || selectedRow['att totem skills'] || '';
+            const defTotem = selectedRow['D flag/totem'] || selectedRow['def totem'] || '';
+            const defTotemSkills = selectedRow['D flag desc/Totem skills'] || selectedRow['def totem skills'] || '';
+            const attackerName = selectedRow['att name'] || selectedRow['attacker name'] || selectedRow['attacker id'] || 'Inconnu';
+            const defenderName = selectedRow['def name'] || selectedRow['defender id'] || 'Inconnu';
+
+            // Utilisation du même design en pleine largeur que la boîte principale, avec une bordure ambrée distinctive
+            container.innerHTML = `
+                <div class="bg-slate-950/90 border border-amber-500/40 p-4 rounded-xl space-y-3 shadow-xl">
+                    <div class="flex items-center justify-between gap-4 overflow-x-auto text-xs">
+                        <div class="flex flex-col items-center justify-center min-w-[70px] border-r border-slate-800 pr-4">
+                            <span class="font-mono font-bold text-amber-300 text-sm">${datePart}</span>
+                            <span class="font-mono text-slate-400 text-xs">${timePart}</span>
+                        </div>
+
+                        <div class="flex flex-col space-y-1 flex-1">
+                            <div class="flex items-center gap-2 text-[11px] px-1">
+                                <span class="font-bold text-cyan-400 truncate max-w-[180px]">${escapeHtml(attackerName)}</span>
+                                <span class="font-mono text-cyan-300 font-bold bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded shadow-sm">${attPower}</span>
+                            </div>
+                            ${renderTeamGrid(rawAttTeam, true, isTitan, attTotem, attTotemSkills, attIndPets)}
+                        </div>
+
+                        <span class="text-slate-600 font-bold text-sm px-2">VS</span>
+
+                        <div class="flex flex-col space-y-1 flex-1">
+                            <div class="flex items-center gap-2 text-[11px] px-1">
+                                <span class="font-bold text-orange-400 truncate max-w-[180px]">${escapeHtml(defenderName)}</span>
+                                <span class="font-mono text-purple-300 font-bold bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded shadow-sm">${defPower}</span>
+                            </div>
+                            ${renderTeamGrid(rawDefTeam, false, isTitan, defTotem, defTotemSkills, defIndPets)}
+                        </div>
+
+                        <div class="flex items-center justify-center min-w-[70px] border-l border-slate-800 pl-4">
+                            <span class="font-mono font-black text-xl ${pointsColorClass}">+${pts}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function closeBattleModal() {
