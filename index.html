@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.84</title>
+    <title>Guild Wars Board - v1.90</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.84</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.90</span>
                 </h1>
-                <p class="text-xs text-slate-400">mise à jour de l'import d'une guerre JSON (admin)</p>
+                <p class="text-xs text-slate-400">mise à jour de l'import de batailles via le clipboard (admin)</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database prête</span>
@@ -33,7 +33,7 @@
             <button onclick="navigateWar(-1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">◀ Guerre Préc.</button>
             <div class="text-center flex-1 flex items-center justify-center gap-2">
                 <span id="warDateText" class="text-lg font-extrabold text-amber-400 tracking-wider">--/--</span>
-                <button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
+                <! button onclick="deleteActiveWar()" class="text-red-400 hover:text-red-300 transition cursor-pointer text-sm ml-1" title="Supprimer cette guerre">🗑️</button>
             </div>
             <button onclick="navigateWar(1)" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer">Guerre Suiv. ▶</button>
         </div>
@@ -41,7 +41,7 @@
         <!-- Dashboard Container -->
         <div id="dashboard" class="space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-12 rounded-xl text-center text-slate-400 shadow-lg">
-                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.84)</div>
+                <div class="text-xl font-medium text-slate-300 mb-2">Guild Wars Board est prêt (v1.90)</div>
                 <p class="text-sm">Utilisez le bouton <span class="text-amber-400 font-bold">🔒 Admin</span> en haut à droite pour gérer vos données.</p>
             </div>
         </div>
@@ -58,8 +58,8 @@
             </div>
             
             <div class="p-6 overflow-y-auto space-y-6 flex-1">
-                <input type="file" id="jsonWarInput" accept=".json" class="hidden" onchange="handleJSONWarImport(event)">
-                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="handleJSONRestoreImport(event)">
+                <input type="file" id="jsonWarInput" accept=".json" class="hidden" onchange="importGuildWarFile(event)">
+                <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="importBackupFile(event)">
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onclick="document.getElementById('jsonWarInput').click()" class="flex flex-col items-center justify-between p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 text-center transition cursor-pointer group h-24 shadow-md">
@@ -162,6 +162,9 @@
     		messagingSenderId: "48502757594",
     		appId: "1:48502757594:web:55247df5d920e90b29ede3"
   		};
+  		
+  		// Nom de la guilde pour Firestore (en PROD= le nom de la guilde, en DEV= "test" pour ne pas perturber l'app online)
+  		const MY_GUILD_ID = "Pew Pew"; // ou Pwe Pew ou test
 
 		// Initialisation de Firebase
 		firebase.initializeApp(firebaseConfig);
@@ -249,7 +252,7 @@ function getWeekKeyForWar(warKey, warData) {
 }
 
 // --- FONCTION DE RESTORE (D'UN BACKUP) ---
-async function handleJSONRestoreImport(event) {
+async function importBackupFile(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -312,7 +315,7 @@ async function handleJSONRestoreImport(event) {
             let count = 0;
 
             for (let wk of allWeeks) {
-                let docRef = db.collection("wars").doc("my_guild").collection("weeks").doc(wk);
+                let docRef = db.collection("wars").doc(MY_GUILD_ID).collection("weeks").doc(wk);
                 batch.set(docRef, weeksDataMap[wk], { merge: true });
 
                 count++;
@@ -345,7 +348,7 @@ async function loadFromCloud(maxWeeks) {
 
     try {
         let query = db.collection("wars")
-            .doc("my_guild")
+            .doc(MY_GUILD_ID)
             .collection("weeks")
             .orderBy("weekId", "desc");
 
@@ -612,7 +615,7 @@ async function loadFromCloud(maxWeeks) {
         }
 
 // IMPORTE UN JSON DE GUERRE DES GUILDES
-async function handleJSONWarImport(e) {
+async function importGuildWarFile(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -640,7 +643,7 @@ async function handleJSONWarImport(e) {
 
             // 2. Sauvegarde dans le Cloud (Sous-collection weeks/{weekId})
             // On stocke la guerre dans un objet structuré sous la clé du fichier ou un identifiant propre
-            const docRef = db.collection("wars").doc("my_guild").collection("weeks").doc(weekId);
+            const docRef = db.collection("wars").doc(MY_GUILD_ID).collection("weeks").doc(weekId);
             
             // On utilise { merge: true } pour ne pas écraser les autres guerres ou les héros/titans de cette même semaine
             await docRef.set({
@@ -670,6 +673,48 @@ async function handleJSONWarImport(e) {
     reader.readAsText(file);
 }
 
+		// utilitaire clipboard pour incrémenter l'heure d'une bataille d'une minute: HH:MM+1
+		function incrementOneMinute(dateTimeStr) {
+    		if (!dateTimeStr) return dateTimeStr;
+    		let parts = dateTimeStr.split(' ');
+    		if (parts.length < 2) return dateTimeStr;
+
+    		let datePart = parts[0];
+    		let timeSubParts = parts[1].split(':');
+    		if (timeSubParts.length < 2) return dateTimeStr;
+
+    		let hours = parseInt(timeSubParts[0], 10);
+    		let minutes = parseInt(timeSubParts[1], 10);
+
+    		minutes += 1;
+    		if (minutes >= 60) {
+        		minutes = 0;
+        		hours = (hours + 1) % 24;
+    		}
+
+    		let newTimePart = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    		return `${datePart} ${newTimePart}`;
+		}
+
+		// utilitaire clipboard pour traiter un faux doublon (cad 2 attaques dans la meme minute contre le meme adversaire)
+		function sanitizeRows(rows) {
+    		let seenKeys = new Set();
+    
+    		rows.forEach(row => {
+        		let key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+        
+        		while (seenKeys.has(key)) {
+            		row['date time'] = incrementOneMinute(row['date time']);
+            		key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+        		}
+        
+        		seenKeys.add(key);
+    		});
+    
+    		return rows;
+		}
+
+		// handler function when admin clicks on PASTE button (import CSV battles from clipboard)
         async function importSmartClipboard() {
             if (!navigator.clipboard || !navigator.clipboard.readText) {
                 alert("Votre navigateur ne permet pas l'accès automatique au presse-papier.");
@@ -681,31 +726,34 @@ async function handleJSONWarImport(e) {
                     alert("Le presse-papier est vide.");
                     return;
                 }
-                detectAndProcessCSV(text);
+                processSmartClipboard(text);
             } catch (err) {
                 alert("Impossible de lire le presse-papier : " + err.message);
             }
         }
 
-        function detectAndProcessCSV(csvText) {
+		// check data in clipboard to identify data (hero or titan battles)
+        function processSmartClipboard(csvText) {
             Papa.parse(csvText, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    const rows = results.data;
-                    let targetType = 'titan';
+                	let rows = results.data;
 
-                    const hasPetsData = rows.some(row => {
-                        const attPet = row['attacker pet'] || row['att pet'] || row['attacker pets'] || '';
-                        const defPet = row['defender pet'] || row['def pet'] || row['defender pets'] || '';
-                        return String(attPet).trim().length > 0 || String(defPet).trim().length > 0;
-                    });
+            		// 1. On nettoie/sanitize les faux doublons du clipboard via notre fonction dédiée
+            		rows = sanitizeRows(rows);
 
-                    if (hasPetsData) {
-                        targetType = 'hero';
-                    }
+            		// 2. On identifie s'il s'agit de héros ou de titans
+            		const hasPetsData = rows.some(row => {
+                		const attPet = row['attacker pet'] || row['att pet'] || row['attacker pets'] || '';
+                		const defPet = row['defender pet'] || row['def pet'] || row['defender pets'] || '';
+                		return String(attPet).trim().length > 0 || String(defPet).trim().length > 0;
+            		});
 
-                    processCSVTextParsed(rows, targetType);
+            		let targetType = hasPetsData ? 'hero' : 'titan';
+
+            		// 3. On envoie le tout à la suite
+            		processCSVTextParsed(rows, targetType);
                 },
                 error: function(err) {
                     alert("Erreur de détection CSV : " + err.message);
@@ -713,40 +761,98 @@ async function handleJSONWarImport(e) {
             });
         }
 
-        function processCSVTextParsed(incomingRows, type) {
-            const previousCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
-            
-            if (type === 'hero') {
-                appState.heroes = mergeUniqueRows(appState.heroes, incomingRows);
-            } else {
-                appState.titans = mergeUniqueRows(appState.titans, incomingRows);
-            }
+async function processCSVTextParsed(incomingRows, type) {
+    const statusEl = document.getElementById('globalStatus');
+    if (statusEl) statusEl.innerText = `Import des batailles de ${type} dans le Cloud...`;
 
-            const newCount = type === 'hero' ? appState.heroes.length : appState.titans.length;
-            const addedCount = newCount - previousCount;
-            
-            const logEl = document.getElementById('smartImportLog');
-            if (logEl) {
-                logEl.innerText = `✅ +${addedCount} batailles de ${type.toUpperCase()}`;
+    try {
+        // 1. Grouper les lignes entrantes par semaine (weekId) en se basant sur leur date
+        let rowsByWeek = {};
+        incomingRows.forEach(row => {
+            let dateTime = row['date time'] || row['date'] || '';
+            let wk = getWeekKeyFromDateString(dateTime);
+            if (wk) {
+                if (!rowsByWeek[wk]) rowsByWeek[wk] = [];
+                rowsByWeek[wk].push(row);
             }
+        });
 
-            saveToLocalStorage();
-            updateDatabaseUI();
-            if (appState.activeKey) renderDashboard();
+        let weeksToUpdate = Object.keys(rowsByWeek);
+        if (weeksToUpdate.length === 0) {
+            alert("Aucune date valide trouvée dans les données du presse-papier pour les ranger par semaine.");
+            if (statusEl) statusEl.innerText = 'Database prête';
+            return;
         }
 
-        function mergeUniqueRows(existingRows, newRows) {
-            const uniqueMap = new Map();
-            existingRows.forEach(row => {
-                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
-                uniqueMap.set(key, row);
-            });
-            newRows.forEach(row => {
-                const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
-                uniqueMap.set(key, row);
-            });
-            return Array.from(uniqueMap.values());
+        // 2. Mettre à jour chaque semaine concernée dans Firestore
+        for (let wk of weeksToUpdate) {
+            let newRowsForThisWeek = rowsByWeek[wk];
+            let docRef = db.collection("wars").doc(MY_GUILD_ID).collection("weeks").doc(wk);
+
+            // On récupère le document existant de la semaine
+            let docSnap = await docRef.get();
+            let existingData = docSnap.exists ? docSnap.data() : { weekId: wk, wars: {}, heroes: [], titans: [] };
+
+            let targetField = type === 'hero' ? 'heroes' : 'titans';
+            let existingRows = existingData[targetField] || [];
+
+            // Fusion propre (gère le chevauchement d'import)
+            let mergedRows = mergeUniqueRows(existingRows, newRowsForThisWeek);
+
+            // Enregistrement dans Firestore
+            await docRef.set({
+                weekId: wk,
+                [targetField]: mergedRows
+            }, { merge: true });
         }
+
+        console.log(`✅ Batailles de ${type} synchronisées avec Firestore pour ${weeksToUpdate.length} semaine(s).`);
+
+        // 3. Rechargement propre de l'application
+        if (typeof reloadApplication === 'function') {
+            await reloadApplication();
+        } else {
+            await loadFromCloud(8);
+            if (typeof updateNavigationUI === 'function') updateNavigationUI();
+            if (typeof updateDatabaseUI === 'function') updateDatabaseUI();
+            if (typeof renderDashboard === 'function') renderDashboard();
+        }
+
+        const logEl = document.getElementById('smartImportLog');
+        if (logEl) {
+            logEl.innerText = `✅ Batailles de ${type.toUpperCase()} enregistrées dans le Cloud`;
+        }
+
+        if (statusEl) statusEl.innerText = '✅ Import Cloud réussi';
+        alert(`🎉 Batailles de ${type} importées et sauvegardées dans le Cloud avec succès !`);
+
+    } catch (err) {
+        console.error("❌ Erreur lors de l'import CSV Cloud :", err);
+        alert("Erreur lors de l'enregistrement des batailles : " + err.message);
+        if (statusEl) statusEl.innerText = '❌ Erreur import CSV';
+    }
+}
+
+
+function mergeUniqueRows(existingRows, newRows) {
+    const uniqueMap = new Map();
+
+    // 1. On charge l'historique existant
+    existingRows.forEach(row => {
+        const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+        uniqueMap.set(key, row);
+    });
+
+    // 2. On fusionne les nouvelles lignes (déjà sanitisées en amont)
+    newRows.forEach(row => {
+        const key = `${row['attacker id'] || ''}_${row['defender id'] || ''}_${row['date time'] || ''}_${row['points'] || ''}`;
+        uniqueMap.set(key, row);
+    });
+
+    // 3. On retourne le tableau combiné et dédupliqué
+    return Array.from(uniqueMap.values());
+}
+
 
         function updateDatabaseUI() {
             const hMeta = document.getElementById('heroMeta');
