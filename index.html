@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Guild Wars Board - v1.95</title>
+    <title>Guild Wars Board - v1.96</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 	<!-- Firebase App (Base SDK) -->
@@ -16,9 +16,9 @@
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
-                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.95</span>
+                    <span>⚔️</span> Guild Wars Board <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">v1.96</span>
                 </h1>
-                <p class="text-xs text-slate-400">v1.95: always displays the defenders, even when no attack has taken place</p>
+                <p class="text-xs text-slate-400">v1.96: test mode</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span id="globalStatus" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Database ready</span>
@@ -163,9 +163,13 @@
     		appId: "1:48502757594:web:55247df5d920e90b29ede3"
   		};
   		
-  		// Nom de la guilde pour Firestore (en PROD= le nom de la guilde, en DEV= "test" pour ne pas perturber l'app online)
-  		const MY_GUILD_ID = "Pew Pew"; // ou Pwe Pew ou test
+  		// pour lancer l'app en mode tests: ?mode=test
+  		const urlParams = new URLSearchParams(window.location.search);
+  		const PRODUCTION_MODE = urlParams.get("mode") === "test" ? 0 : 1;
 
+  		// Nom de la guilde pour Firestore (en PROD= le nom de la guilde, en DEV= "test" pour ne pas perturber l'app online)
+  		const MY_GUILD_ID = PRODUCTION_MODE === 1 ? "Pew Pew" : "test";	// sélectionne la bonne DB
+            
 		// Initialisation de Firebase
 		firebase.initializeApp(firebaseConfig);
 		const db = firebase.firestore();
